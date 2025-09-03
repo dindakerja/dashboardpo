@@ -277,6 +277,15 @@
                             <label for="dashboard-description-input">Dashboard Description</label>
                             <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
                         </div>
+                        <div class="form-group">
+                            <label for="background-image-upload-container">Background Image</label>
+                            <div id="background-drop-zone" class="drop-zone">
+                                <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
+                                <button type="button" class="btn">Select an image</button>
+                            </div>
+                            <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
+                            <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
+                        </div>
                         <button type="submit" class="btn w-full">Update Settings</button>
                     </form>
                     <p id="settings-error-message" class="error-message"></p>
@@ -760,6 +769,28 @@
         imageFileInputEl.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 handleImageFile(e.target.files[0]);
+            }
+        });
+
+        // --- Background Image Upload Logic ---
+        const handleBgImageFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedBgImageUrl = e.target.result;
+                    backgroundImagePreviewEl.src = uploadedBgImageUrl;
+                    backgroundImagePreviewEl.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showMessage('Please select a valid image file.', true);
+            }
+        };
+
+        backgroundDropZoneEl.addEventListener('click', () => { backgroundImageFileInputEl.click(); });
+        backgroundImageFileInputEl.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleBgImageFile(e.target.files[0]);
             }
         });
 
