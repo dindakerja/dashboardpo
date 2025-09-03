@@ -361,6 +361,9 @@
         let unsubscribeContent = null;
         let unsubscribeSettings = null;
         let isFirebaseReady = false; // New variable to track Firebase readiness
+        
+        // A variable to store the timer ID for the auto-refresh
+        let autoRefreshTimer = null;
 
         const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
         const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
@@ -414,16 +417,23 @@
                             console.log("Firestore settings update received.");
                             if (docSnapshot.exists()) {
                                 const settings = docSnapshot.data();
+                                // Apply background image
                                 if (settings.backgroundImageUrl) {
                                     document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
                                 } else {
                                     document.body.style.backgroundImage = 'none';
                                 }
+                                // Apply dashboard title and description
                                 if (settings.dashboardTitle) {
                                     dashboardTitleEl.textContent = settings.dashboardTitle;
                                 }
                                 if (settings.dashboardDescription) {
                                     dashboardDescriptionEl.textContent = settings.dashboardDescription;
+                                }
+                                // Apply dashboard size if available
+                                if (settings.dashboardWidth && settings.dashboardHeight) {
+                                    dashboardPanelEl.style.width = `${Math.max(settings.dashboardWidth, 900)}px`;
+                                    dashboardPanelEl.style.height = `${Math.max(settings.dashboardHeight, 500)}px`;
                                 }
                                 // Pre-fill admin form
                                 dashboardTitleInputEl.value = settings.dashboardTitle || '';
@@ -945,20 +955,33 @@
             }
         };
 
-        const stopDashboardResize = () => {
+        const stopDashboardResize = async () => {
             isDashboardResizing = false;
             document.removeEventListener('mousemove', handleDashboardResize);
             document.removeEventListener('mouseup', stopDashboardResize);
             dashboardPanelEl.style.cursor = 'default';
+
+            // Save the new dashboard size to Firestore
+            if (isFirebaseReady) {
+                try {
+                    await setDoc(doc(db, settingsDocPath), {
+                        dashboardWidth: dashboardPanelEl.offsetWidth,
+                        dashboardHeight: dashboardPanelEl.offsetHeight
+                    }, { merge: true });
+                    showMessage('Dashboard size saved!');
+                } catch (error) {
+                    console.error("Error saving dashboard size:", error);
+                    showMessage('Failed to save dashboard size.', true);
+                }
+            }
         };
 
-                // --- Auto-refresh every 1 minute ---
+        // --- Auto-refresh every 1 minute ---
         // The application already has real-time updates from Firestore,
         // but this will perform a full page reload for a hard refresh.
-        setTimeout(() => {
+        autoRefreshTimer = setTimeout(() => {
             location.reload();
-        }, 300 * 1000); // 60 seconds * 1000 milliseconds
-        
+        }, 600 * 1000); // 60 seconds * 1000 milliseconds
     </script>
 </body>
 </html>
