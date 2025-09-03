@@ -20,7 +20,7 @@
             color: #1f2937;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1600px;
             width: 100%;
             padding: 0.5rem 1rem;
             margin-top: 1rem;
@@ -60,8 +60,8 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .nav-link.active:hover {
-             transform: none;
-             box-shadow: none;
+            transform: none;
+            box-shadow: none;
         }
         .dashboard-panel, .admin-panel {
             background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent */
@@ -277,15 +277,6 @@
                             <label for="dashboard-description-input">Dashboard Description</label>
                             <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
                         </div>
-                        <div class="form-group">
-                            <label for="background-image-upload-container">Background Image</label>
-                            <div id="background-drop-zone" class="drop-zone">
-                                <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
-                                <button type="button" class="btn">Select an image</button>
-                            </div>
-                            <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
-                            <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
-                        </div>
                         <button type="submit" class="btn w-full">Update Settings</button>
                     </form>
                     <p id="settings-error-message" class="error-message"></p>
@@ -315,7 +306,7 @@
                         <button type="submit" class="btn w-full">Save Content</button>
                     </form>
                     <p id="error-message" class="error-message"></p>
-        
+            
                     <h3 class="text-lg font-semibold mb-2">Current Content</h3>
                     <div id="admin-content-list" class="admin-content-list">
                         <div id="loading-list" class="text-gray-400">Loading content list...</div>
@@ -338,51 +329,50 @@
     <!-- Firebase Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
         
         // Set log level for debugging
         setLogLevel('debug');
 
-        // --- PASTE YOUR FIREBASE CONFIGURATION HERE ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyASVzA90FdwpQSeZkYSbzQvjq-Q_S0WEiQ",
-            authDomain: "dashboardpo-ad777.firebaseapp.com",
-            projectId: "dashboardpo-ad777",
-            storageBucket: "dashboardpo-ad777.firebasestorage.app",
-            messagingSenderId: "658206743438",
-            appId: "1:658206743438:web:b388d1b47bab715cbb22df"
-        };
-        const appId = firebaseConfig.projectId;
+        // --- Firebase Configuration ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         // --- Firebase Initialization and Authentication ---
         let app, db, auth;
         let userId = 'loading...';
         let unsubscribeContent = null;
         let unsubscribeSettings = null;
-        let isFirebaseReady = false; // New variable to track Firebase readiness
+        let isFirebaseReady = false;
 
         const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
         const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
 
         // Check if the firebase config is valid
-        if (firebaseConfig.projectId && !firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
+        if (firebaseConfig.projectId) {
             try {
                 // Initialize Firebase services outside of the auth listener for quicker setup
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Immediately attempt to sign in anonymously
-                signInAnonymously(auth).then(() => {
-                    console.log("Signed in anonymously.");
-                }).catch((error) => {
-                    console.error("Firebase Auth error:", error);
-                    if (error.code === 'auth/configuration-not-found') {
-                        console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
-                        userIdEl.textContent = 'Auth error. Check console.';
-                    }
-                });
+                // Sign in with the provided custom token or anonymously if not available
+                if (initialAuthToken) {
+                    signInWithCustomToken(auth, initialAuthToken).catch((error) => {
+                        console.error("Firebase Auth error with custom token:", error);
+                        signInAnonymously(auth); // Fallback to anonymous
+                    });
+                } else {
+                    signInAnonymously(auth).catch((error) => {
+                        console.error("Firebase Auth error:", error);
+                        if (error.code === 'auth/configuration-not-found') {
+                            console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
+                            userIdEl.textContent = 'Auth error. Check console.';
+                        }
+                    });
+                }
 
                 // Handles user authentication state changes and sets up listeners
                 onAuthStateChanged(auth, async (user) => {
@@ -414,11 +404,7 @@
                             console.log("Firestore settings update received.");
                             if (docSnapshot.exists()) {
                                 const settings = docSnapshot.data();
-                                if (settings.backgroundImageUrl) {
-                                    document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
-                                } else {
-                                    document.body.style.backgroundImage = 'none';
-                                }
+                                document.body.style.backgroundImage = 'none';
                                 if (settings.dashboardTitle) {
                                     dashboardTitleEl.textContent = settings.dashboardTitle;
                                 }
@@ -428,12 +414,6 @@
                                 // Pre-fill admin form
                                 dashboardTitleInputEl.value = settings.dashboardTitle || '';
                                 dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
-                                if (settings.backgroundImageUrl) {
-                                    backgroundImagePreviewEl.src = settings.backgroundImageUrl;
-                                    backgroundImagePreviewEl.classList.remove('hidden');
-                                } else {
-                                    backgroundImagePreviewEl.classList.add('hidden');
-                                }
                             }
                         }, (error) => {
                             console.error("Error fetching settings:", error);
@@ -483,9 +463,6 @@
         const dashboardDescriptionEl = document.getElementById('dashboard-description');
         const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
         const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
-        const backgroundDropZoneEl = document.getElementById('background-drop-zone');
-        const backgroundImageFileInputEl = document.getElementById('background-image-file-input');
-        const backgroundImagePreviewEl = document.getElementById('background-image-preview');
         const settingsErrorMessageEl = document.getElementById('settings-error-message');
 
 
@@ -500,7 +477,6 @@
         const GRID_SIZE = 20; // For smart placement
 
         let uploadedImageUrl = null;
-        let uploadedBgImageUrl = null;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -724,233 +700,188 @@
         settingsFormEl.addEventListener('submit', async (e) => {
             e.preventDefault();
             settingsErrorMessageEl.textContent = '';
-            
-            const newTitle = dashboardTitleInputEl.value;
-            const newDescription = dashboardDescriptionInputEl.value;
-            
-            if (!isFirebaseReady) {
-                settingsErrorMessageEl.textContent = 'Connecting to database. Please wait a moment and try again.';
+
+            const title = dashboardTitleInputEl.value;
+            const description = dashboardDescriptionInputEl.value;
+
+            if (!auth.currentUser) {
+                settingsErrorMessageEl.textContent = 'Authentication error. Please refresh the page.';
+                console.error("Authentication error: user not logged in.");
                 return;
             }
 
-            const settingsData = {
-                dashboardTitle: newTitle,
-                dashboardDescription: newDescription,
-                backgroundImageUrl: uploadedBgImageUrl
-            };
-            
             try {
-                // Use setDoc with a specific document path to create or update the single settings document
-                await setDoc(doc(db, settingsDocPath), settingsData, { merge: true });
+                const settingsData = {
+                    dashboardTitle: title || null,
+                    dashboardDescription: description || null,
+                };
                 
-                showMessage('Settings updated successfully!');
+                // Use setDoc to create or overwrite the single settings document
+                await setDoc(doc(db, settingsDocPath), settingsData, { merge: true });
+                showMessage('Dashboard settings updated successfully!');
             } catch (error) {
                 console.error("Error updating settings: ", error);
                 settingsErrorMessageEl.textContent = 'Failed to update settings. Please try again.';
             }
         });
 
-        // --- Content Image Upload Logic ---
-        const handleImageFile = (file) => {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    uploadedImageUrl = e.target.result;
-                    imagePreviewEl.src = uploadedImageUrl;
-                    imagePreviewEl.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                showMessage('Please select a valid image file.', true);
-            }
-        };
-
-        dropZoneEl.addEventListener('click', () => { imageFileInputEl.click(); });
-        imageFileInputEl.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleImageFile(e.target.files[0]);
-            }
-        });
-
-        // --- Background Image Upload Logic ---
-        const handleBgImageFile = (file) => {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    uploadedBgImageUrl = e.target.result;
-                    backgroundImagePreviewEl.src = uploadedBgImageUrl;
-                    backgroundImagePreviewEl.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                showMessage('Please select a valid image file.', true);
-            }
-        };
-
-        backgroundDropZoneEl.addEventListener('click', () => { backgroundImageFileInputEl.click(); });
-        backgroundImageFileInputEl.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleBgImageFile(e.target.files[0]);
-            }
-        });
-
-        // Handle drag and drop for both types of images
-        const setupDropZone = (element, handler) => {
-            element.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                element.classList.add('active');
-            });
-            element.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                element.classList.remove('active');
-            });
-            element.addEventListener('drop', (e) => {
-                e.preventDefault();
-                element.classList.remove('active');
-                if (e.dataTransfer.files.length > 0) {
-                    handler(e.dataTransfer.files[0]);
-                }
-            });
-        };
-        setupDropZone(dropZoneEl, handleImageFile);
-        setupDropZone(backgroundDropZoneEl, handleBgImageFile);
-
-
-        // --- Draggable and Resizable Logic ---
-        const makeDraggableAndResizable = (element, docId) => {
-            const resizer = element.querySelector('.resizer');
+        // --- Drag & Drop and Resize Logic ---
+        function makeDraggableAndResizable(cardEl, docId) {
+            const resizerEl = cardEl.querySelector('.resizer');
             let isDragging = false;
             let isResizing = false;
-            let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
+            let initialX, initialY, initialWidth, initialHeight;
+            let mouseX, mouseY;
 
-            const dragMouseDown = (e) => {
-                if (e.target !== resizer) {
-                    isDragging = true;
-                    initialX = e.clientX;
-                    initialY = e.clientY;
-                    currentX = element.offsetLeft;
-                    currentY = element.offsetTop;
-                    document.addEventListener('mousemove', dragMouseMove);
-                    document.addEventListener('mouseup', dragMouseUp);
-                    element.style.cursor = 'grabbing';
-                    element.classList.add('active-drag');
+            const updatePositionAndSize = async () => {
+                if (!db || !auth.currentUser) return;
+                try {
+                    await updateDoc(doc(db, contentCollectionPath, docId), {
+                        x: cardEl.offsetLeft,
+                        y: cardEl.offsetTop,
+                        width: cardEl.offsetWidth,
+                        height: cardEl.offsetHeight
+                    });
+                } catch (error) {
+                    console.error("Error updating document position/size:", error);
                 }
             };
 
-            const dragMouseMove = (e) => {
-                if (isDragging) {
-                    const dx = e.clientX - initialX;
-                    const dy = e.clientY - initialY;
+            const dragStart = (e) => {
+                if (e.target === resizerEl) return; // Don't drag if we're on the resizer
+                
+                isDragging = true;
+                cardEl.classList.add('active-drag');
+                
+                let clientX = e.clientX || e.touches[0].clientX;
+                let clientY = e.clientY || e.touches[0].clientY;
 
-                    let newX = currentX + dx;
-                    let newY = currentY + dy;
-
-                    newX = Math.max(0, newX);
-                    newY = Math.max(0, newY);
-
-                    element.style.left = `${newX}px`;
-                    element.style.top = `${newY}px`;
-                    updateDashboardSize();
-                }
-            };
-
-            const dragMouseUp = async (e) => {
-                if (isDragging) {
-                    isDragging = false;
-                    document.removeEventListener('mousemove', dragMouseMove);
-                    document.removeEventListener('mouseup', dragMouseUp);
-                    element.style.cursor = 'grab';
-                    element.classList.remove('active-drag');
-
-                    const newX = element.offsetLeft;
-                    const newY = element.offsetTop;
-                    if (db) { // Check if db is initialized before trying to use it
-                        await updateDoc(doc(db, contentCollectionPath, docId), { x: newX, y: newY });
-                    }
-                }
-            };
+                initialX = clientX - cardEl.offsetLeft;
+                initialY = clientY - cardEl.offsetTop;
             
-            const resizeMouseDown = (e) => {
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchmove', dragMove);
+                document.addEventListener('touchend', dragEnd);
+            };
+
+            const dragMove = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+
+                let clientX = e.clientX || e.touches[0].clientX;
+                let clientY = e.clientY || e.touches[0].clientY;
+                
+                const newX = clientX - initialX;
+                const newY = clientY - initialY;
+                
+                cardEl.style.left = `${newX}px`;
+                cardEl.style.top = `${newY}px`;
+            };
+
+            const dragEnd = () => {
+                isDragging = false;
+                cardEl.classList.remove('active-drag');
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('touchend', dragEnd);
+                updatePositionAndSize();
+            };
+
+            const resizeStart = (e) => {
+                e.stopPropagation(); // Stop the card from dragging at the same time
                 isResizing = true;
-                e.stopPropagation();
-                initialX = e.clientX;
-                initialY = e.clientY;
-                initialWidth = element.offsetWidth;
-                initialHeight = element.offsetHeight;
-                document.addEventListener('mousemove', resizeMouseMove);
-                document.addEventListener('mouseup', resizeMouseUp);
-                element.classList.add('active-drag');
+                
+                let clientX = e.clientX || e.touches[0].clientX;
+                let clientY = e.clientY || e.touches[0].clientY;
+
+                initialX = clientX;
+                initialY = clientY;
+                initialWidth = cardEl.offsetWidth;
+                initialHeight = cardEl.offsetHeight;
+
+                document.addEventListener('mousemove', resizeMove);
+                document.addEventListener('mouseup', resizeEnd);
+                document.addEventListener('touchmove', resizeMove);
+                document.addEventListener('touchend', resizeEnd);
             };
 
-            const resizeMouseMove = (e) => {
-                if (isResizing) {
-                    const dx = e.clientX - initialX;
-                    const dy = e.clientY - initialY;
-                    
-                    let newWidth = initialWidth + dx;
-                    let newHeight = initialHeight + dy;
+            const resizeMove = (e) => {
+                if (!isResizing) return;
+                e.preventDefault();
 
-                    newWidth = Math.max(newWidth, 250);
-                    newHeight = Math.max(newHeight, 200);
-                    
-                    element.style.width = `${newWidth}px`;
-                    element.style.height = `${newHeight}px`;
-                    updateDashboardSize();
-                }
+                let clientX = e.clientX || e.touches[0].clientX;
+                let clientY = e.clientY || e.touches[0].clientY;
+
+                const newWidth = initialWidth + (clientX - initialX);
+                const newHeight = initialHeight + (clientY - initialY);
+
+                cardEl.style.width = `${Math.max(newWidth, 200)}px`;
+                cardEl.style.height = `${Math.max(newHeight, 150)}px`;
+            };
+
+            const resizeEnd = () => {
+                isResizing = false;
+                document.removeEventListener('mousemove', resizeMove);
+                document.removeEventListener('mouseup', resizeEnd);
+                document.removeEventListener('touchmove', resizeMove);
+                document.removeEventListener('touchend', resizeEnd);
+                updatePositionAndSize();
             };
             
-            const resizeMouseUp = async () => {
-                if (isResizing) {
-                    isResizing = false;
-                    document.removeEventListener('mousemove', resizeMouseMove);
-                    document.removeEventListener('mouseup', resizeMouseUp);
-                    element.classList.remove('active-drag');
-                    const newWidth = element.offsetWidth;
-                    const newHeight = element.offsetHeight;
-                    if (db) { // Check if db is initialized before trying to use it
-                        await updateDoc(doc(db, contentCollectionPath, docId), { width: newWidth, height: newHeight });
-                    }
-                }
+            // Add listeners for dragging
+            cardEl.addEventListener('mousedown', dragStart);
+            cardEl.addEventListener('touchstart', dragStart, { passive: false });
+            
+            // Add listeners for resizing
+            resizerEl.addEventListener('mousedown', resizeStart);
+            resizerEl.addEventListener('touchstart', resizeStart, { passive: false });
+        }
+
+        // --- Image Upload Drag & Drop Logic ---
+        const handleFileUpload = (file, previewEl, fileInput, variableName) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewEl.src = e.target.result;
+                previewEl.classList.remove('hidden');
+                uploadedImageUrl = e.target.result;
             };
-
-            element.addEventListener('mousedown', dragMouseDown);
-            resizer.addEventListener('mousedown', resizeMouseDown);
+            reader.readAsDataURL(file);
         };
-        
-        // --- Dashboard Resizing Logic ---
-        let isDashboardResizing = false;
-        let initialMouseX, initialMouseY, initialWidth, initialHeight;
 
-        dashboardResizerEl.addEventListener('mousedown', (e) => {
-            isDashboardResizing = true;
-            initialMouseX = e.clientX;
-            initialMouseY = e.clientY;
-            initialWidth = dashboardPanelEl.offsetWidth;
-            initialHeight = dashboardPanelEl.offsetHeight;
-            document.addEventListener('mousemove', handleDashboardResize);
-            document.addEventListener('mouseup', stopDashboardResize);
-            dashboardPanelEl.style.cursor = 'se-resize';
+        [
+            { dropZone: dropZoneEl, fileInput: imageFileInputEl, preview: imagePreviewEl, variable: 'uploadedImageUrl' }
+        ].forEach(({ dropZone, fileInput, preview, variable }) => {
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('active');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('active');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('active');
+                if (e.dataTransfer.files.length) {
+                    handleFileUpload(e.dataTransfer.files[0], preview, fileInput, variable);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFileUpload(e.target.files[0], preview, fileInput, variable);
+                }
+            });
+
+            // Make the drop zone button trigger the file input
+            dropZone.querySelector('button').addEventListener('click', () => {
+                fileInput.click();
+            });
         });
 
-        const handleDashboardResize = (e) => {
-            if (isDashboardResizing) {
-                const dx = e.clientX - initialMouseX;
-                const dy = e.clientY - initialMouseY;
-                
-                const newWidth = initialWidth + dx;
-                const newHeight = initialHeight + dy;
-
-                dashboardPanelEl.style.width = `${Math.max(newWidth, 900)}px`;
-                dashboardPanelEl.style.height = `${Math.max(newHeight, 500)}px`;
-            }
-        };
-
-        const stopDashboardResize = () => {
-            isDashboardResizing = false;
-            document.removeEventListener('mousemove', handleDashboardResize);
-            document.removeEventListener('mouseup', stopDashboardResize);
-            dashboardPanelEl.style.cursor = 'default';
-        };
     </script>
 </body>
 </html>
