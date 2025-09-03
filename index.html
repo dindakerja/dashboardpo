@@ -259,22 +259,21 @@
 
     <!-- Firebase Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        
         // Set log level for debugging
         setLogLevel('debug');
 
         // --- PASTE YOUR FIREBASE CONFIGURATION HERE ---
-        // You can get this from your Firebase Project Settings -> General -> Your apps
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyASVzA90FdwpQSeZkYSbzQvjq-Q_S0WEiQ",
+            authDomain: "dashboardpo-ad777.firebaseapp.com",
+            projectId: "dashboardpo-ad777",
+            storageBucket: "dashboardpo-ad777.firebasestorage.app",
+            messagingSenderId: "658206743438",
+            appId: "1:658206743438:web:b388d1b47bab715cbb22df"
         };
         const appId = firebaseConfig.projectId;
         
@@ -283,7 +282,7 @@
         let userId = 'loading...';
         
         // Check if the firebase config is valid
-        if (!firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
+        if (firebaseConfig.projectId && !firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
             try {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
@@ -322,6 +321,10 @@
                             console.log("Signed in anonymously.");
                         } catch (error) {
                             console.error("Firebase Auth error:", error);
+                            // This specific error indicates that the Anonymous Sign-in method is not enabled.
+                            if (error.code === 'auth/configuration-not-found') {
+                                console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
+                            }
                             userId = 'Anonymous';
                             userIdEl.textContent = 'Error signing in.';
                         }
