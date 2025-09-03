@@ -243,9 +243,37 @@
         #dashboard-panel .resizer {
             border-radius: 0 0 1.5rem 0;
         }
+        .fullscreen-button {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(5px);
+            border-radius: 9999px;
+            padding: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .fullscreen-button:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            transform: scale(1.05);
+        }
+        .fullscreen-button svg {
+            color: #4b5563;
+        }
     </style>
 </head>
 <body>
+    <!-- Fullscreen Button -->
+    <button id="fullscreen-button" class="fullscreen-button">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m-1 11v-4m0 0h-4m4 0l-5 5m11-11h4m0 0v4m0-4l-5 5m11 11h-4m0 0v-4m0 4l5-5" />
+        </svg>
+    </button>
+    
 
     <div class="container">
         <!-- Dashboard Panel for Displaying Signage Content -->
@@ -472,6 +500,8 @@
         const dashboardDescriptionEl = document.getElementById('dashboard-description');
         const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
         const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
+        
+        const fullscreenButtonEl = document.getElementById('fullscreen-button');
 
 
         // Array of background colors to cycle through for cards
@@ -933,6 +963,30 @@
         autoRefreshTimer = setTimeout(() => {
             location.reload();
         }, 600 * 1000); // 60 seconds * 1000 milliseconds
+
+        // --- Fullscreen API Logic ---
+        fullscreenButtonEl.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    showMessage('Could not go fullscreen. Please check browser permissions.', true);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Event listener to change the button icon when fullscreen is toggled by the user
+        document.addEventListener('fullscreenchange', () => {
+            const pathElement = fullscreenButtonEl.querySelector('path');
+            if (document.fullscreenElement) {
+                // Change icon to 'exit fullscreen'
+                pathElement.setAttribute('d', 'M4 8V4m0 0h4m-4 0l5 5m11-1V4m0 0h-4m0 0l-5 5m11 11v-4m0 0h-4m4 0l-5-5m-11 5v4m0 0h4m-4 0l5-5');
+            } else {
+                // Change icon back to 'enter fullscreen'
+                pathElement.setAttribute('d', 'M4 8V4m0 0h4M4 4l5 5m-1 11v-4m0 0h-4m4 0l-5 5m11-11h4m0 0v4m0-4l-5 5m11 11h-4m0 0v-4m0 4l5-5');
+            }
+        });
     </script>
 </body>
 </html>
