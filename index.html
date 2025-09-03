@@ -497,8 +497,10 @@
         let unsubscribeSettings = null;
 
         const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
-        // FIX: Updated the settings path to be a document within the public data collection, aligning with the security rules.
-        const settingsDocPath = `artifacts/${appId}/public/data/settings`;
+        // FIX: The path was invalid because it had an odd number of segments.
+        // We need a path in the format "collection/document/collection/document...".
+        // Changed `settings` to a collection and gave the document a new ID.
+        const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
