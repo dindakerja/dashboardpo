@@ -17,10 +17,10 @@
             color: #1f2937;
         }
         .container {
-            max-width: 900px; /* Made container smaller */
+            max-width: 900px;
             width: 100%;
-            padding: 0.5rem; /* Reduced padding */
-            margin-top: 1rem; /* Reduced margin */
+            padding: 0.5rem;
+            margin-top: 1rem;
             margin-bottom: 5rem;
         }
         .nav-bar {
@@ -38,14 +38,14 @@
             z-index: 50;
         }
         .nav-link {
-            padding: 0.5rem 1rem; /* Reduced padding */
+            padding: 0.5rem 1rem;
             border-radius: 9999px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             border: 2px solid transparent;
             color: #6b7280;
-            font-size: 0.875rem; /* Reduced font size */
+            font-size: 0.875rem;
         }
         .nav-link.active {
             color: #6366f1;
@@ -62,10 +62,10 @@
         }
         .dashboard-panel, .admin-panel {
             background-color: white;
-            padding: 1.5rem; /* Reduced padding */
+            padding: 1.5rem;
             border-radius: 1.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            min-height: 500px; /* Reduced min-height */
+            min-height: 500px;
         }
         .dashboard-panel {
             display: none;
@@ -81,12 +81,12 @@
         }
         .signage-content-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Adjusted grid column size */
-            gap: 1rem; /* Reduced gap */
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
             width: 100%;
         }
         .signage-card {
-            padding: 1.5rem; /* Reduced padding */
+            padding: 1.5rem;
             border-radius: 1rem;
             display: flex;
             flex-direction: column;
@@ -98,12 +98,12 @@
             transform: translateY(-5px);
         }
         .signage-card h3 {
-            font-size: 1.25rem; /* Reduced font size */
+            font-size: 1.25rem;
             font-weight: 700;
-            margin-bottom: 0.5rem; /* Reduced margin */
+            margin-bottom: 0.5rem;
         }
         .signage-card p {
-            font-size: 0.875rem; /* Reduced font size */
+            font-size: 0.875rem;
             color: #4b5563;
             line-height: 1.6;
         }
@@ -113,18 +113,18 @@
             margin-top: 0.75rem;
         }
         .form-group {
-            margin-bottom: 1rem; /* Reduced margin */
+            margin-bottom: 1rem;
         }
         .form-group label {
             display: block;
             font-weight: 600;
-            margin-bottom: 0.25rem; /* Reduced margin */
+            margin-bottom: 0.25rem;
             font-size: 0.875rem;
         }
         .form-group input, .form-group textarea {
             width: 100%;
-            padding: 0.5rem 0.75rem; /* Reduced padding */
-            border-radius: 0.5rem; /* Reduced border radius */
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
             border: 1px solid #d1d5db;
             outline: none;
             transition: border-color 0.2s;
@@ -135,8 +135,8 @@
         .btn {
             background-color: #6366f1;
             color: white;
-            padding: 0.5rem 1rem; /* Reduced padding */
-            border-radius: 0.5rem; /* Reduced border radius */
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
             font-weight: 600;
             transition: background-color 0.2s;
             cursor: pointer;
@@ -158,8 +158,8 @@
             right: 1rem;
             background-color: #10b981;
             color: white;
-            padding: 0.75rem 1.5rem; /* Reduced padding */
-            border-radius: 0.5rem; /* Reduced border radius */
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1-px rgba(0, 0, 0, 0.06);
             z-index: 100;
             transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
@@ -174,28 +174,28 @@
         .delete-btn {
             background-color: #ef4444;
             color: white;
-            padding: 0.4rem 0.8rem; /* Reduced padding */
+            padding: 0.4rem 0.8rem;
             border-radius: 0.4rem;
             font-weight: 600;
             transition: background-color 0.2s;
             cursor: pointer;
             border: none;
-            font-size: 0.75rem; /* Reduced font size */
+            font-size: 0.75rem;
         }
         .delete-btn:hover {
             background-color: #dc2626;
         }
         .admin-content-list {
-            margin-top: 1rem; /* Reduced margin */
+            margin-top: 1rem;
         }
         .admin-content-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background-color: #f9fafb;
-            padding: 0.75rem; /* Reduced padding */
+            padding: 0.75rem;
             border-radius: 0.5rem;
-            margin-bottom: 0.5rem; /* Reduced margin */
+            margin-bottom: 0.5rem;
             font-size: 0.875rem;
         }
         .admin-content-item span {
@@ -426,6 +426,7 @@
                     userId: userId 
                 };
 
+                // Add the new content to the Firestore collection
                 await addDoc(collection(db, collectionPath), newContent);
                 console.log("Document successfully written!");
                 formEl.reset();
@@ -444,7 +445,7 @@
                 userIdEl.textContent = userId;
                 console.log("User authenticated:", userId);
 
-                // Start listening to Firestore only after authentication is confirmed
+                // This is the real-time listener that fixes the dashboard update issue
                 if (unsubscribe) {
                     unsubscribe();
                 }
@@ -483,4 +484,3 @@
     </script>
 </body>
 </html>
-
