@@ -116,6 +116,8 @@
         }
         .signage-card img {
             max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
             border-radius: 0.75rem;
             margin-top: 0.75rem;
             pointer-events: none; /* Prevents dragging issues with the image */
@@ -443,6 +445,24 @@
         const collectionPath = `artifacts/${appId}/public/data/signage_content`;
         let unsubscribe = null; // Variable to hold the unsubscribe function
 
+        // Function to update the size of the dashboard container
+        const updateDashboardSize = () => {
+            const cards = document.querySelectorAll('.signage-card');
+            let maxX = 0;
+            let maxY = 0;
+
+            cards.forEach(card => {
+                const x = card.offsetLeft + card.offsetWidth;
+                const y = card.offsetTop + card.offsetHeight;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            });
+            
+            // Add some padding to the max values
+            signageContentContainer.style.minWidth = `${Math.max(maxX + 50, 900)}px`;
+            signageContentContainer.style.minHeight = `${Math.max(maxY + 50, 500)}px`;
+        };
+
         // Function to render all content on both the dashboard and admin panel
         const renderContent = (docs) => {
             loadingEl.style.display = 'none';
@@ -486,6 +506,8 @@
                 // Make the card draggable and resizable
                 makeDraggableAndResizable(cardEl, item.id);
             });
+            
+            updateDashboardSize();
 
             // Render on the admin panel with delete buttons
             docs.forEach(item => {
@@ -538,31 +560,27 @@
             }
 
             try {
-                // Fetch existing docs to determine the initial position
-                const existingDocs = await getDocs(collection(db, collectionPath));
-                const count = existingDocs.size;
-                const x = 20 * (count % 10);
-                const y = 20 * (count % 10);
-
                 const newContent = {
                     title: title,
                     message: message,
                     imageUrl: uploadedImageUrl,
                     timestamp: Date.now(),
                     userId: userId,
-                    x: x,
-                    y: y,
+                    x: 20, // Fixed initial X position
+                    y: 20, // Fixed initial Y position
                     width: DEFAULT_CARD_WIDTH,
                     height: DEFAULT_CARD_HEIGHT
                 };
 
                 // Add the new content to the Firestore collection
-                await addDoc(collection(db, collectionPath), newContent);
-                console.log("Document successfully written!");
+                const newDocRef = await addDoc(collection(db, collectionPath), newContent);
+                console.log("Document successfully written with ID: ", newDocRef.id);
                 formEl.reset();
                 imagePreviewEl.classList.add('hidden');
                 uploadedImageUrl = null;
                 showMessage('Content saved successfully!');
+                
+                updateDashboardSize();
 
             } catch (error) {
                 console.error("Error adding document: ", error);
@@ -652,12 +670,13 @@
 
                     // Boundary checks
                     newX = Math.max(0, newX);
-                    newX = Math.min(newX, containerRect.width - element.offsetWidth);
+                    newX = Math.min(newX, signageContentContainer.offsetWidth - element.offsetWidth);
                     newY = Math.max(0, newY);
-                    newY = Math.min(newY, containerRect.height - element.offsetHeight - navbarHeight);
+                    newY = Math.min(newY, signageContentContainer.offsetHeight - element.offsetHeight - navbarHeight);
 
                     element.style.left = `${newX}px`;
                     element.style.top = `${newY}px`;
+                    updateDashboardSize();
                 }
             };
 
@@ -699,11 +718,12 @@
                     let newHeight = initialHeight + dy;
 
                     // Boundary checks
-                    newWidth = Math.min(newWidth, containerRect.width - element.offsetLeft);
-                    newHeight = Math.min(newHeight, containerRect.height - element.offsetTop - navbarHeight);
-
+                    newWidth = Math.min(newWidth, signageContentContainer.offsetWidth - element.offsetLeft);
+                    newHeight = Math.min(newHeight, signageContentContainer.offsetHeight - element.offsetTop - navbarHeight);
+                    
                     element.style.width = `${newWidth}px`;
                     element.style.height = `${newHeight}px`;
+                    updateDashboardSize();
                 }
             };
             
