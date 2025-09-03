@@ -95,9 +95,14 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            z-index: 10;
         }
         .signage-card:hover {
             z-index: 10;
+        }
+        .signage-card.active-drag {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 20;
         }
         .signage-card h3 {
             font-size: 1.25rem;
@@ -279,7 +284,7 @@
     </div>
 
     <!-- Navigation bar moved to the bottom -->
-    <nav class="nav-bar">
+    <nav id="nav-bar" class="nav-bar">
         <button id="dashboard-link" class="nav-link active">Dashboard</button>
         <button id="admin-link" class="nav-link">Admin Panel</button>
     </nav>
@@ -391,12 +396,16 @@
         const dropZoneEl = document.getElementById('drop-zone');
         const imageFileInputEl = document.getElementById('image-file-input');
         const imagePreviewEl = document.getElementById('image-preview');
+        const navBarEl = document.getElementById('nav-bar');
 
         // Array of background colors to cycle through
         const backgroundColors = [
             'bg-indigo-50', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-red-50',
             'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
         ];
+        
+        const DEFAULT_CARD_WIDTH = 300;
+        const DEFAULT_CARD_HEIGHT = 200;
         
         let uploadedImageUrl = null;
 
@@ -529,12 +538,22 @@
             }
 
             try {
+                // Fetch existing docs to determine the initial position
+                const existingDocs = await getDocs(collection(db, collectionPath));
+                const count = existingDocs.size;
+                const x = 20 * (count % 10);
+                const y = 20 * (count % 10);
+
                 const newContent = {
                     title: title,
                     message: message,
                     imageUrl: uploadedImageUrl,
                     timestamp: Date.now(),
-                    userId: userId 
+                    userId: userId,
+                    x: x,
+                    y: y,
+                    width: DEFAULT_CARD_WIDTH,
+                    height: DEFAULT_CARD_HEIGHT
                 };
 
                 // Add the new content to the Firestore collection
@@ -603,6 +622,10 @@
             let isResizing = false;
             let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
 
+            // Get boundaries
+            const containerRect = signageContentContainer.getBoundingClientRect();
+            const navbarHeight = navBarEl.offsetHeight;
+
             // Mouse down for dragging
             const dragMouseDown = (e) => {
                 if (e.target !== resizer) {
@@ -614,6 +637,7 @@
                     document.addEventListener('mousemove', dragMouseMove);
                     document.addEventListener('mouseup', dragMouseUp);
                     element.style.cursor = 'grabbing';
+                    element.classList.add('active-drag');
                 }
             };
 
@@ -622,8 +646,18 @@
                 if (isDragging) {
                     const dx = e.clientX - initialX;
                     const dy = e.clientY - initialY;
-                    element.style.left = `${currentX + dx}px`;
-                    element.style.top = `${currentY + dy}px`;
+
+                    let newX = currentX + dx;
+                    let newY = currentY + dy;
+
+                    // Boundary checks
+                    newX = Math.max(0, newX);
+                    newX = Math.min(newX, containerRect.width - element.offsetWidth);
+                    newY = Math.max(0, newY);
+                    newY = Math.min(newY, containerRect.height - element.offsetHeight - navbarHeight);
+
+                    element.style.left = `${newX}px`;
+                    element.style.top = `${newY}px`;
                 }
             };
 
@@ -634,6 +668,7 @@
                     document.removeEventListener('mousemove', dragMouseMove);
                     document.removeEventListener('mouseup', dragMouseUp);
                     element.style.cursor = 'grab';
+                    element.classList.remove('active-drag');
 
                     const newX = element.offsetLeft;
                     const newY = element.offsetTop;
@@ -651,6 +686,7 @@
                 initialHeight = element.offsetHeight;
                 document.addEventListener('mousemove', resizeMouseMove);
                 document.addEventListener('mouseup', resizeMouseUp);
+                element.classList.add('active-drag');
             };
 
             // Mouse move for resizing
@@ -658,8 +694,16 @@
                 if (isResizing) {
                     const dx = e.clientX - initialX;
                     const dy = e.clientY - initialY;
-                    element.style.width = `${initialWidth + dx}px`;
-                    element.style.height = `${initialHeight + dy}px`;
+                    
+                    let newWidth = initialWidth + dx;
+                    let newHeight = initialHeight + dy;
+
+                    // Boundary checks
+                    newWidth = Math.min(newWidth, containerRect.width - element.offsetLeft);
+                    newHeight = Math.min(newHeight, containerRect.height - element.offsetTop - navbarHeight);
+
+                    element.style.width = `${newWidth}px`;
+                    element.style.height = `${newHeight}px`;
                 }
             };
             
@@ -669,6 +713,7 @@
                     isResizing = false;
                     document.removeEventListener('mousemove', resizeMouseMove);
                     document.removeEventListener('mouseup', resizeMouseUp);
+                    element.classList.remove('active-drag');
                     const newWidth = element.offsetWidth;
                     const newHeight = element.offsetHeight;
                     await updateDoc(doc(db, collectionPath, docId), { width: newWidth, height: newHeight });
