@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signage Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            padding: 1rem;
+        }
+        .admin-panel {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            min-height: 600px;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            border: 1px solid #d1d5db;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #6366f1;
+        }
+        .btn {
+            background-color: #6366f1;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        .btn:hover {
+            background-color: #4f46e5;
+        }
+        .error-message {
+            color: #ef4444;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        .message-box {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #10b981;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 100;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+        .message-box.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .delete-btn {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 0.875rem;
+        }
+        .delete-btn:hover {
+            background-color: #dc2626;
+        }
+        .admin-content-list {
+            margin-top: 2rem;
+        }
+        .admin-content-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .admin-content-item span {
+            font-weight: 600;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Admin Panel for Inputting Content -->
+        <div class="admin-panel">
+            <h2 class="text-2xl lg:text-3xl font-bold mb-4">Digital Signage Admin Panel</h2>
+            <div class="text-gray-500 mb-6">User ID: <span id="user-id">Loading...</span></div>
+            
+            <h3 class="text-xl font-semibold mb-4">Add New Content</h3>
+            <form id="signage-form" class="mb-8">
+                <div class="form-group">
+                    <label for="title-input">Title</label>
+                    <input type="text" id="title-input" placeholder="Enter a title" required>
+                </div>
+                <div class="form-group">
+                    <label for="message-input">Message</label>
+                    <textarea id="message-input" rows="4" placeholder="Enter a message" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="image-input">Image URL</label>
+                    <input type="url" id="image-input" placeholder="Optional: Enter an image URL">
+                </div>
+                <button type="submit" class="btn w-full">Save Content</button>
+            </form>
+            <p id="error-message" class="error-message"></p>
+
+            <h3 class="text-xl font-semibold mb-4">Current Content</h3>
+            <div id="admin-content-list" class="admin-content-list">
+                <div id="loading-list" class="text-gray-400">Loading content list...</div>
+                <!-- Current content with delete buttons will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Message box for success/error messages -->
+    <div id="message-box" class="message-box"></div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set log level for debugging
+        setLogLevel('debug');
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Firebase Initialization and Authentication ---
+        let app, db, auth;
+        let userId = 'loading...';
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+        }
+
+        // --- DOM Elements ---
+        const userIdEl = document.getElementById('user-id');
+        const adminContentList = document.getElementById('admin-content-list');
+        const loadingListEl = document.getElementById('loading-list');
+        const formEl = document.getElementById('signage-form');
+        const errorMessageEl = document.getElementById('error-message');
+        const messageBoxEl = document.getElementById('message-box');
+        
+        // Function to display a temporary message box
+        const showMessage = (message, isError = false) => {
+            messageBoxEl.textContent = message;
+            messageBoxEl.style.backgroundColor = isError ? '#ef4444' : '#10b981';
+            messageBoxEl.classList.add('visible');
+            setTimeout(() => {
+                messageBoxEl.classList.remove('visible');
+            }, 3000);
+        };
+
+        // Handles user authentication state changes
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userIdEl.textContent = userId;
+                console.log("User authenticated:", userId);
+            } else {
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                } catch (error) {
+                    console.error("Firebase Auth error:", error);
+                    userId = 'Anonymous';
+                    userIdEl.textContent = 'Error signing in.';
+                }
+            }
+        });
+
+        // --- Firestore Data Management and Rendering ---
+        const collectionPath = `artifacts/${appId}/public/data/signage_content`;
+
+        // Function to render the list of content on the admin panel
+        const renderAdminContent = (docs) => {
+            loadingListEl.style.display = 'none';
+            adminContentList.innerHTML = '';
+
+            if (docs.length === 0) {
+                adminContentList.innerHTML = '<p class="text-gray-400">No content to display.</p>';
+                return;
+            }
+            
+            docs.forEach(doc => {
+                const item = doc.data(); // This line was causing the error. We need to get the data from the snapshot object.
+                const listItemEl = document.createElement('div');
+                listItemEl.className = 'admin-content-item';
+                listItemEl.innerHTML = `
+                    <span>${item.title}</span>
+                    <button class="delete-btn" data-id="${doc.id}">Delete</button>
+                `;
+                adminContentList.appendChild(listItemEl);
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const docId = e.target.dataset.id;
+                    await deleteContent(docId);
+                });
+            });
+        };
+
+        // Listen for real-time updates from Firestore
+        const unsubscribe = onSnapshot(collection(db, collectionPath), (snapshot) => {
+            console.log("Firestore update received.");
+            const docs = [];
+            snapshot.forEach(doc => {
+                docs.push({ id: doc.id, ...doc.data() });
+            });
+            docs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            renderAdminContent(snapshot.docs); // Pass the raw snapshot docs to the render function
+        }, (error) => {
+            console.error("Error fetching documents:", error);
+            loadingListEl.textContent = 'Failed to load content list.';
+        });
+
+        // Function to delete content from Firestore
+        const deleteContent = async (docId) => {
+            if (!docId) return;
+            try {
+                await deleteDoc(doc(db, collectionPath, docId));
+                showMessage('Content successfully deleted!');
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                showMessage('Failed to delete content.', true);
+            }
+        };
+
+        // --- Form Submission Logic ---
+        formEl.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessageEl.textContent = '';
+
+            const title = document.getElementById('title-input').value;
+            const message = document.getElementById('message-input').value;
+            const imageUrl = document.getElementById('image-input').value;
+
+            if (!title) {
+                errorMessageEl.textContent = 'Title is required!';
+                return;
+            }
+
+            try {
+                const newContent = {
+                    title: title,
+                    message: message,
+                    imageUrl: imageUrl,
+                    timestamp: Date.now(),
+                    userId: userId 
+                };
+
+                await addDoc(collection(db, collectionPath), newContent);
+                console.log("Document successfully written!");
+                formEl.reset();
+                showMessage('Content saved successfully!');
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                errorMessageEl.textContent = 'Failed to save content. Please try again.';
+            }
+        });
+    </script>
+</body>
+</html>
