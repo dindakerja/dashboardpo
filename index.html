@@ -202,6 +202,18 @@
             font-weight: 600;
             color: #374151;
         }
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            transition: border-color 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+        .drop-zone:hover, .drop-zone.active {
+            border-color: #6366f1;
+            background-color: #eef2ff;
+        }
     </style>
 </head>
 <body>
@@ -233,8 +245,13 @@
                     <textarea id="message-input" rows="3" placeholder="Enter a message" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="image-input">Image URL</label>
-                    <input type="url" id="image-input" placeholder="Optional: Enter an image URL">
+                    <label for="image-upload-container">Image</label>
+                    <div id="drop-zone" class="drop-zone">
+                        <p class="text-sm text-gray-500 mb-2">Drag & drop an image here or</p>
+                        <button type="button" class="btn">Select an image</button>
+                    </div>
+                    <input type="file" id="image-file-input" class="hidden" accept="image/*">
+                    <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 rounded-lg">
                 </div>
                 <button type="submit" class="btn w-full">Save Content</button>
             </form>
@@ -358,6 +375,9 @@
         const formEl = document.getElementById('signage-form');
         const errorMessageEl = document.getElementById('error-message');
         const messageBoxEl = document.getElementById('message-box');
+        const dropZoneEl = document.getElementById('drop-zone');
+        const imageFileInputEl = document.getElementById('image-file-input');
+        const imagePreviewEl = document.getElementById('image-preview');
 
         // Array of background colors to cycle through
         const backgroundColors = [
@@ -365,6 +385,8 @@
             'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
         ];
         
+        let uploadedImageUrl = null;
+
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
             messageBoxEl.textContent = message;
@@ -467,7 +489,6 @@
 
             const title = document.getElementById('title-input').value;
             const message = document.getElementById('message-input').value;
-            const imageUrl = document.getElementById('image-input').value;
 
             if (!title) {
                 errorMessageEl.textContent = 'Title is required!';
@@ -483,7 +504,7 @@
                 const newContent = {
                     title: title,
                     message: message,
-                    imageUrl: imageUrl,
+                    imageUrl: uploadedImageUrl,
                     timestamp: Date.now(),
                     userId: userId 
                 };
@@ -492,6 +513,8 @@
                 await addDoc(collection(db, collectionPath), newContent);
                 console.log("Document successfully written!");
                 formEl.reset();
+                imagePreviewEl.classList.add('hidden');
+                uploadedImageUrl = null;
                 showMessage('Content saved successfully!');
 
             } catch (error) {
@@ -499,6 +522,52 @@
                 errorMessageEl.textContent = 'Failed to save content. Please try again.';
             }
         });
+
+        // --- Image Upload Logic ---
+        const handleImageFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImageUrl = e.target.result;
+                    imagePreviewEl.src = uploadedImageUrl;
+                    imagePreviewEl.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showMessage('Please select a valid image file.', true);
+            }
+        };
+
+        // Handle file selection via button click
+        dropZoneEl.addEventListener('click', () => {
+            imageFileInputEl.click();
+        });
+
+        imageFileInputEl.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+
+        // Handle drag and drop
+        dropZoneEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZoneEl.classList.add('active');
+        });
+
+        dropZoneEl.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZoneEl.classList.remove('active');
+        });
+
+        dropZoneEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZoneEl.classList.remove('active');
+            if (e.dataTransfer.files.length > 0) {
+                handleImageFile(e.dataTransfer.files[0]);
+            }
+        });
+
     </script>
 </body>
 </html>
