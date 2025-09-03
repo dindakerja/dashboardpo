@@ -497,9 +497,8 @@
         let unsubscribeSettings = null;
 
         const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
-        // The error was here. Firestore document paths must have an even number of segments.
-        // We'll change the path to be a valid document reference by removing the 'data' segment.
-        const settingsDocPath = `artifacts/${appId}/public/settings`;
+        // FIX: Updated the settings path to be a document within the public data collection, aligning with the security rules.
+        const settingsDocPath = `artifacts/${appId}/public/data/settings`;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -726,6 +725,11 @@
             
             const newTitle = dashboardTitleInputEl.value;
             const newDescription = dashboardDescriptionInputEl.value;
+            
+            if (!db || !auth.currentUser) {
+                settingsErrorMessageEl.textContent = 'Database or authentication is not ready. Please wait a moment and try again.';
+                return;
+            }
 
             const settingsData = {
                 dashboardTitle: newTitle,
