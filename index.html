@@ -6,10 +6,144 @@
     <title>Digital Signage Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <style>
+        /* Embed Cropper.js CSS for single-file operation */
+        .cropper-container {
+          direction: ltr;
+          font-size: 0;
+          line-height: 0;
+          position: relative;
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          touch-action: none;
+        }
+        .cropper-container img {
+          display: block;
+          height: 100%;
+          image-orientation: 0deg;
+          max-height: none !important;
+          max-width: none !important;
+          min-height: 0 !important;
+          min-width: 0 !important;
+          width: 100%;
+        }
+        .cropper-wrap-box, .cropper-canvas, .cropper-drag-box, .cropper-crop-box, .cropper-modal {
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+        }
+        .cropper-wrap-box {
+          overflow: hidden;
+        }
+        .cropper-drag-box {
+          background-color: #fff;
+          opacity: 0;
+        }
+        .cropper-modal {
+          background-color: #000;
+          opacity: .5;
+        }
+        .cropper-view-box {
+          display: block;
+          height: 100%;
+          outline: 1px solid #39f;
+          outline-color: rgba(51,153,255,.75);
+          overflow: hidden;
+          width: 100%;
+        }
+        .cropper-face {
+          background-color: #fff;
+          opacity: 0.1;
+        }
+        .cropper-face.cropper-move {
+          cursor: move;
+        }
+        .cropper-line {
+          background-color: #39f;
+        }
+        .cropper-line.line-e {
+          top: 0;
+          right: -3px;
+          width: 5px;
+        }
+        .cropper-line.line-n {
+          top: -3px;
+          left: 0;
+          height: 5px;
+        }
+        .cropper-line.line-w {
+          top: 0;
+          left: -3px;
+          width: 5px;
+        }
+        .cropper-line.line-s {
+          bottom: -3px;
+          left: 0;
+          height: 5px;
+        }
+        .cropper-point {
+          background-color: #39f;
+          height: 5px;
+          opacity: .75;
+          width: 5px;
+        }
+        .cropper-point.point-e {
+          top: 50%;
+          right: -3px;
+          margin-top: -3px;
+        }
+        .cropper-point.point-n {
+          top: -3px;
+          left: 50%;
+          margin-left: -3px;
+        }
+        .cropper-point.point-w {
+          top: 50%;
+          left: -3px;
+          margin-top: -3px;
+        }
+        .cropper-point.point-s {
+          bottom: -3px;
+          left: 50%;
+          margin-left: -3px;
+        }
+        .cropper-point.point-ne {
+          top: -3px;
+          right: -3px;
+        }
+        .cropper-point.point-nw {
+          top: -3px;
+          left: -3px;
+        }
+        .cropper-point.point-se {
+          bottom: -3px;
+          right: -3px;
+        }
+        .cropper-point.point-sw {
+          bottom: -3px;
+          left: -3px;
+        }
+        .cropper-point.point-ne.point-nw, .cropper-point.point-se.point-sw {
+          cursor: ns-resize;
+        }
+        .cropper-point.point-ne.point-se, .cropper-point.point-nw.point-sw {
+          cursor: ew-resize;
+        }
+        .cropper-point.point-nw, .cropper-point.point-se {
+          cursor: se-resize;
+        }
+        .cropper-point.point-ne, .cropper-point.point-sw {
+          cursor: ne-resize;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-image: url('https://picsum.photos/1920/1080');
+            background-image: url('background.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -118,6 +252,14 @@
             font-size: 0.875rem;
             color: #4b5563;
             line-height: 1.6;
+            margin-bottom: 0.75rem; /* Add spacing below the message */
+        }
+        .signage-card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 0.75rem;
+            pointer-events: none; /* Prevents dragging issues with the image */
         }
         .form-group {
             margin-bottom: 1rem;
@@ -243,6 +385,29 @@
         #dashboard-panel .resizer {
             border-radius: 0 0 1.5rem 0;
         }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+        }
+        #image-to-crop {
+            display: block;
+            max-width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -323,6 +488,20 @@
         <button id="dashboard-link" class="nav-link active">Dashboard</button>
         <button id="admin-link" class="nav-link">Admin Panel</button>
     </nav>
+
+    <!-- Modal for image cropping -->
+    <div id="image-crop-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-lg font-bold mb-4">Crop Image</h3>
+            <div class="mb-4">
+                <img id="image-to-crop" alt="Image to be cropped">
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button id="crop-cancel-btn" class="btn bg-gray-400 hover:bg-gray-500">Cancel</button>
+                <button id="crop-save-btn" class="btn">Crop & Save</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Message box for success/error messages -->
     <div id="message-box" class="message-box"></div>
@@ -479,6 +658,12 @@
         const dashboardDescriptionEl = document.getElementById('dashboard-description');
         const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
         const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
+
+        // New elements for cropping modal
+        const imageCropModal = document.getElementById('image-crop-modal');
+        const imageToCropEl = document.getElementById('image-to-crop');
+        const cropSaveBtn = document.getElementById('crop-save-btn');
+        const cropCancelBtn = document.getElementById('crop-cancel-btn');
         
         const DEFAULT_CARD_WIDTH = 300;
         const DEFAULT_CARD_HEIGHT = 200;
@@ -487,6 +672,7 @@
         let uploadedImageUrl = null;
         let editingDocId = null; // Variable to store the ID of the document being edited
         let allContentData = []; // To store a local copy of content for editing
+        let cropperInstance = null; // Global variable to manage the Cropper instance
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -609,18 +795,9 @@
                     <h3 class="text-gray-800">${item.title}</h3>
                     <p class="text-gray-600">${item.message}</p>
                 `;
-                
-                // New container for the image with a fixed height and overflow-hidden
                 if (item.imageUrl) {
-                    contentHTML += `
-                        <div class="relative w-full h-48 mt-4 overflow-hidden rounded-lg flex-shrink-0">
-                            <img class="absolute w-full h-full object-cover" 
-                                src="${item.imageUrl}" 
-                                alt="${item.title}" 
-                                onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">
-                        </div>`;
+                    contentHTML += `<img src="${item.imageUrl}" alt="${item.title}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">`;
                 }
-                
                 contentHTML += `<div class="resizer"></div>`; // Resizer handle
                 cardEl.innerHTML = contentHTML;
                 signageContentContainer.appendChild(cardEl);
@@ -750,6 +927,7 @@
             saveBtnEl.textContent = 'Save Content';
             formTitleEl.textContent = 'Add New Content';
             cancelBtnEl.classList.add('hidden');
+            hideCropModal();
         };
 
         cancelBtnEl.addEventListener('click', resetForm);
@@ -782,14 +960,47 @@
             }
         });
 
+        // --- Image Cropping Modal Logic ---
+        const showCropModal = (imageUrl) => {
+            imageToCropEl.src = imageUrl;
+            imageCropModal.style.display = 'flex';
+            if (cropperInstance) {
+                cropperInstance.destroy();
+            }
+            cropperInstance = new Cropper(imageToCropEl, {
+                aspectRatio: 16 / 9, // Example aspect ratio
+                viewMode: 1,
+            });
+        };
+
+        const hideCropModal = () => {
+            imageCropModal.style.display = 'none';
+            if (cropperInstance) {
+                cropperInstance.destroy();
+                cropperInstance = null;
+            }
+        };
+
+        cropCancelBtn.addEventListener('click', hideCropModal);
+
+        cropSaveBtn.addEventListener('click', () => {
+            if (cropperInstance) {
+                const croppedCanvas = cropperInstance.getCroppedCanvas();
+                if (croppedCanvas) {
+                    uploadedImageUrl = croppedCanvas.toDataURL();
+                    imagePreviewEl.src = uploadedImageUrl;
+                    imagePreviewEl.classList.remove('hidden');
+                    hideCropModal();
+                }
+            }
+        });
+
         // --- Content Image Upload Logic ---
         const handleImageFile = (file) => {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    uploadedImageUrl = e.target.result;
-                    imagePreviewEl.src = uploadedImageUrl;
-                    imagePreviewEl.classList.remove('hidden');
+                    showCropModal(e.target.result);
                 };
                 reader.readAsDataURL(file);
             } else {
