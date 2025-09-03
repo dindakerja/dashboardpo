@@ -386,34 +386,36 @@
 
                         // Real-time listener for dashboard settings
                         if (unsubscribeSettings) { unsubscribeSettings(); }
-                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
-                            console.log("Firestore settings update received.");
-                            if (docSnapshot.exists()) {
-                                const settings = docSnapshot.data();
-                                if (settings.backgroundImageUrl) {
-                                    document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
-                                } else {
-                                    document.body.style.backgroundImage = 'none';
+                        if (db) { // Check if db is initialized before trying to use it
+                             unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
+                                console.log("Firestore settings update received.");
+                                if (docSnapshot.exists()) {
+                                    const settings = docSnapshot.data();
+                                    if (settings.backgroundImageUrl) {
+                                        document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
+                                    } else {
+                                        document.body.style.backgroundImage = 'none';
+                                    }
+                                    if (settings.dashboardTitle) {
+                                        dashboardTitleEl.textContent = settings.dashboardTitle;
+                                    }
+                                    if (settings.dashboardDescription) {
+                                        dashboardDescriptionEl.textContent = settings.dashboardDescription;
+                                    }
+                                    // Pre-fill admin form
+                                    dashboardTitleInputEl.value = settings.dashboardTitle || '';
+                                    dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
+                                    if (settings.backgroundImageUrl) {
+                                        backgroundImagePreviewEl.src = settings.backgroundImageUrl;
+                                        backgroundImagePreviewEl.classList.remove('hidden');
+                                    } else {
+                                        backgroundImagePreviewEl.classList.add('hidden');
+                                    }
                                 }
-                                if (settings.dashboardTitle) {
-                                    dashboardTitleEl.textContent = settings.dashboardTitle;
-                                }
-                                if (settings.dashboardDescription) {
-                                    dashboardDescriptionEl.textContent = settings.dashboardDescription;
-                                }
-                                // Pre-fill admin form
-                                dashboardTitleInputEl.value = settings.dashboardTitle || '';
-                                dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
-                                if (settings.backgroundImageUrl) {
-                                    backgroundImagePreviewEl.src = settings.backgroundImageUrl;
-                                    backgroundImagePreviewEl.classList.remove('hidden');
-                                } else {
-                                    backgroundImagePreviewEl.classList.add('hidden');
-                                }
-                            }
-                        }, (error) => {
-                            console.error("Error fetching settings:", error);
-                        });
+                            }, (error) => {
+                                console.error("Error fetching settings:", error);
+                            });
+                        }
 
                     } else {
                         try {
@@ -856,7 +858,9 @@
 
                     const newX = element.offsetLeft;
                     const newY = element.offsetTop;
-                    await updateDoc(doc(db, contentCollectionPath, docId), { x: newX, y: newY });
+                    if (db) { // Check if db is initialized before trying to use it
+                        await updateDoc(doc(db, contentCollectionPath, docId), { x: newX, y: newY });
+                    }
                 }
             };
             
@@ -897,7 +901,9 @@
                     element.classList.remove('active-drag');
                     const newWidth = element.offsetWidth;
                     const newHeight = element.offsetHeight;
-                    await updateDoc(doc(db, contentCollectionPath, docId), { width: newWidth, height: newHeight });
+                    if (db) { // Check if db is initialized before trying to use it
+                        await updateDoc(doc(db, contentCollectionPath, docId), { width: newWidth, height: newHeight });
+                    }
                 }
             };
 
