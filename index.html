@@ -260,27 +260,82 @@
     <!-- Firebase Scripts -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Set log level for debugging
         setLogLevel('debug');
 
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+        // --- PASTE YOUR FIREBASE CONFIGURATION HERE ---
+        // You can get this from your Firebase Project Settings -> General -> Your apps
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        const appId = firebaseConfig.projectId;
+        
         // --- Firebase Initialization and Authentication ---
         let app, db, auth;
         let userId = 'loading...';
+        
+        // Check if the firebase config is valid
+        if (!firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Handles user authentication state changes
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdEl.textContent = userId;
+                        console.log("User authenticated:", userId);
 
-        try {
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch (e) {
-            console.error("Firebase initialization failed:", e);
+                        // This is the real-time listener that fixes the dashboard update issue
+                        if (unsubscribe) {
+                            unsubscribe();
+                        }
+                        unsubscribe = onSnapshot(collection(db, collectionPath), (snapshot) => {
+                            console.log("Firestore update received.");
+                            const docs = [];
+                            snapshot.forEach(doc => {
+                                docs.push({ id: doc.id, ...doc.data() });
+                            });
+                            // Sort by timestamp for consistent order
+                            docs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                            renderContent(docs);
+                        }, (error) => {
+                            console.error("Error fetching documents:", error);
+                            loadingEl.textContent = 'Failed to load content. Check the console for errors.';
+                            loadingListEl.textContent = 'Failed to load content list.';
+                            showMessage('Error fetching content!', true);
+                        });
+
+                    } else {
+                        try {
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously.");
+                        } catch (error) {
+                            console.error("Firebase Auth error:", error);
+                            userId = 'Anonymous';
+                            userIdEl.textContent = 'Error signing in.';
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                document.getElementById('loading').textContent = 'Error: Firebase initialization failed. Check your configuration.';
+                document.getElementById('loading-list').textContent = 'Error: Firebase initialization failed.';
+            }
+        } else {
+             document.getElementById('loading').textContent = 'Please enter your Firebase configuration in the code to get started.';
+             document.getElementById('loading-list').textContent = 'Please enter your Firebase configuration in the code to get started.';
         }
 
         // --- DOM Elements ---
@@ -435,50 +490,6 @@
             } catch (error) {
                 console.error("Error adding document: ", error);
                 errorMessageEl.textContent = 'Failed to save content. Please try again.';
-            }
-        });
-
-        // Handles user authentication state changes
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                userIdEl.textContent = userId;
-                console.log("User authenticated:", userId);
-
-                // This is the real-time listener that fixes the dashboard update issue
-                if (unsubscribe) {
-                    unsubscribe();
-                }
-                unsubscribe = onSnapshot(collection(db, collectionPath), (snapshot) => {
-                    console.log("Firestore update received.");
-                    const docs = [];
-                    snapshot.forEach(doc => {
-                        docs.push({ id: doc.id, ...doc.data() });
-                    });
-                    // Sort by timestamp for consistent order
-                    docs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-                    renderContent(docs);
-                }, (error) => {
-                    console.error("Error fetching documents:", error);
-                    loadingEl.textContent = 'Failed to load content. Check the console for errors.';
-                    loadingListEl.textContent = 'Failed to load content list.';
-                    showMessage('Error fetching content!', true);
-                });
-
-            } else {
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        console.log("Signed in with custom token.");
-                    } else {
-                        await signInAnonymously(auth);
-                        console.log("Signed in anonymously.");
-                    }
-                } catch (error) {
-                    console.error("Firebase Auth error:", error);
-                    userId = 'Anonymous';
-                    userIdEl.textContent = 'Error signing in.';
-                }
             }
         });
     </script>
