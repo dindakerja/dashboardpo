@@ -264,58 +264,64 @@
             <h2 class="text-xl lg:text-2xl font-bold mb-3">Digital Signage Admin Panel</h2>
             <div class="text-gray-500 mb-4 text-sm">User ID: <span id="user-id">Loading...</span></div>
             
-            <h3 class="text-lg font-semibold mb-2">Dashboard Settings</h3>
-            <form id="settings-form" class="mb-6">
-                <div class="form-group">
-                    <label for="dashboard-title-input">Dashboard Title</label>
-                    <input type="text" id="dashboard-title-input" placeholder="Enter dashboard title">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Dashboard Settings on the left -->
+                <div class="lg:w-1/2">
+                    <h3 class="text-lg font-semibold mb-2">Dashboard Settings</h3>
+                    <form id="settings-form" class="mb-6">
+                        <div class="form-group">
+                            <label for="dashboard-title-input">Dashboard Title</label>
+                            <input type="text" id="dashboard-title-input" placeholder="Enter dashboard title">
+                        </div>
+                        <div class="form-group">
+                            <label for="dashboard-description-input">Dashboard Description</label>
+                            <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="background-image-upload-container">Background Image</label>
+                            <div id="background-drop-zone" class="drop-zone">
+                                <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
+                                <button type="button" class="btn">Select an image</button>
+                            </div>
+                            <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
+                            <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
+                        </div>
+                        <button type="submit" class="btn w-full">Update Settings</button>
+                    </form>
+                    <p id="settings-error-message" class="error-message"></p>
                 </div>
-                <div class="form-group">
-                    <label for="dashboard-description-input">Dashboard Description</label>
-                    <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="background-image-upload-container">Background Image</label>
-                    <div id="background-drop-zone" class="drop-zone">
-                        <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
-                        <button type="button" class="btn">Select an image</button>
+                
+                <!-- Content Management on the right -->
+                <div class="lg:w-1/2">
+                    <h3 class="text-lg font-semibold mb-2">Add New Content</h3>
+                    <form id="signage-form" class="mb-6">
+                        <div class="form-group">
+                            <label for="title-input">Content Title</label>
+                            <input type="text" id="title-input" placeholder="Enter a title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message-input">Content Message</label>
+                            <textarea id="message-input" rows="3" placeholder="Enter a message" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="image-upload-container">Content Image</label>
+                            <div id="drop-zone" class="drop-zone">
+                                <p class="text-sm text-gray-500 mb-2">Drag & drop an image here or</p>
+                                <button type="button" class="btn">Select an image</button>
+                            </div>
+                            <input type="file" id="image-file-input" class="hidden" accept="image/*">
+                            <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 rounded-lg">
+                        </div>
+                        <button type="submit" class="btn w-full">Save Content</button>
+                    </form>
+                    <p id="error-message" class="error-message"></p>
+        
+                    <h3 class="text-lg font-semibold mb-2">Current Content</h3>
+                    <div id="admin-content-list" class="admin-content-list">
+                        <div id="loading-list" class="text-gray-400">Loading content list...</div>
+                        <!-- Current content with delete buttons will be injected here -->
                     </div>
-                    <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
-                    <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
                 </div>
-                <button type="submit" class="btn w-full">Update Settings</button>
-            </form>
-            <p id="settings-error-message" class="error-message"></p>
-
-            <hr class="my-6">
-
-            <h3 class="text-lg font-semibold mb-2">Add New Content</h3>
-            <form id="signage-form" class="mb-6">
-                <div class="form-group">
-                    <label for="title-input">Content Title</label>
-                    <input type="text" id="title-input" placeholder="Enter a title" required>
-                </div>
-                <div class="form-group">
-                    <label for="message-input">Content Message</label>
-                    <textarea id="message-input" rows="3" placeholder="Enter a message" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="image-upload-container">Content Image</label>
-                    <div id="drop-zone" class="drop-zone">
-                        <p class="text-sm text-gray-500 mb-2">Drag & drop an image here or</p>
-                        <button type="button" class="btn">Select an image</button>
-                    </div>
-                    <input type="file" id="image-file-input" class="hidden" accept="image/*">
-                    <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 rounded-lg">
-                </div>
-                <button type="submit" class="btn w-full">Save Content</button>
-            </form>
-            <p id="error-message" class="error-message"></p>
-
-            <h3 class="text-lg font-semibold mb-2">Current Content</h3>
-            <div id="admin-content-list" class="admin-content-list">
-                <div id="loading-list" class="text-gray-400">Loading content list...</div>
-                <!-- Current content with delete buttons will be injected here -->
             </div>
         </div>
     </div>
