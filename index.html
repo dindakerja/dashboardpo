@@ -9,7 +9,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-image: url('background.jpg');
+            background-image: url('https://picsum.photos/1920/1080');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -99,7 +99,6 @@
             max-width: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             z-index: 10;
             background-color: rgba(255, 255, 255, 0.9);
         }
@@ -119,14 +118,6 @@
             font-size: 0.875rem;
             color: #4b5563;
             line-height: 1.6;
-        }
-        .signage-card img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 0.75rem;
-            margin-top: 0.75rem;
-            pointer-events: none; /* Prevents dragging issues with the image */
         }
         .form-group {
             margin-bottom: 1rem;
@@ -187,7 +178,7 @@
             transform: translateY(0);
             opacity: 1;
         }
-        .delete-btn {
+        .admin-btn {
             background-color: #ef4444;
             color: white;
             padding: 0.4rem 0.8rem;
@@ -198,8 +189,17 @@
             border: none;
             font-size: 0.75rem;
         }
-        .delete-btn:hover {
+        .admin-btn.delete {
+            background-color: #ef4444;
+        }
+        .admin-btn.delete:hover {
             background-color: #dc2626;
+        }
+        .admin-btn.edit {
+            background-color: #f59e0b;
+        }
+        .admin-btn.edit:hover {
+            background-color: #d97706;
         }
         .admin-content-list {
             margin-top: 1rem;
@@ -246,7 +246,6 @@
     </style>
 </head>
 <body>
-
     <div class="container">
         <!-- Dashboard Panel for Displaying Signage Content -->
         <div id="dashboard-panel" class="dashboard-panel active">
@@ -283,7 +282,7 @@
                 
                 <!-- Content Management on the right -->
                 <div class="lg:w-1/2">
-                    <h3 class="text-lg font-semibold mb-2">Add New Content</h3>
+                    <h3 id="form-title" class="text-lg font-semibold mb-2">Add New Content</h3>
                     <form id="signage-form" class="mb-6">
                         <div class="form-group">
                             <label for="title-input">Content Title</label>
@@ -302,7 +301,10 @@
                             <input type="file" id="image-file-input" class="hidden" accept="image/*">
                             <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 rounded-lg">
                         </div>
-                        <button type="submit" class="btn w-full">Save Content</button>
+                        <div class="flex gap-2">
+                            <button type="submit" id="save-btn" class="btn w-full">Save Content</button>
+                            <button type="button" id="cancel-btn" class="btn w-full bg-gray-400 hover:bg-gray-500 hidden">Cancel</button>
+                        </div>
                     </form>
                     <p id="error-message" class="error-message"></p>
         
@@ -466,25 +468,25 @@
         const imageFileInputEl = document.getElementById('image-file-input');
         const imagePreviewEl = document.getElementById('image-preview');
         const navBarEl = document.getElementById('nav-bar');
+        const saveBtnEl = document.getElementById('save-btn');
+        const cancelBtnEl = document.getElementById('cancel-btn');
+        const formTitleEl = document.getElementById('form-title');
+        const titleInputEl = document.getElementById('title-input');
+        const messageInputEl = document.getElementById('message-input');
         
         // New elements for dashboard settings
         const dashboardTitleEl = document.getElementById('dashboard-title');
         const dashboardDescriptionEl = document.getElementById('dashboard-description');
         const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
         const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
-
-
-        // Array of background colors to cycle through for cards
-        const backgroundColors = [
-            'bg-indigo-50', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-red-50',
-            'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
-        ];
         
         const DEFAULT_CARD_WIDTH = 300;
         const DEFAULT_CARD_HEIGHT = 200;
         const GRID_SIZE = 20; // For smart placement
 
         let uploadedImageUrl = null;
+        let editingDocId = null; // Variable to store the ID of the document being edited
+        let allContentData = []; // To store a local copy of content for editing
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -576,9 +578,16 @@
             // Fallback if no easy space is found
             return { x: 20, y: 20 };
         };
+        
+        // Array of background colors to cycle through for cards
+        const backgroundColors = [
+            'bg-indigo-50', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-red-50',
+            'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
+        ];
 
         // Function to render all content on both the dashboard and admin panel
         const renderContent = (docs) => {
+            allContentData = docs; // Store local copy
             loadingEl.style.display = 'none';
             loadingListEl.style.display = 'none';
             signageContentContainer.innerHTML = '';
@@ -600,9 +609,18 @@
                     <h3 class="text-gray-800">${item.title}</h3>
                     <p class="text-gray-600">${item.message}</p>
                 `;
+                
+                // New container for the image with a fixed height and overflow-hidden
                 if (item.imageUrl) {
-                    contentHTML += `<img src="${item.imageUrl}" alt="${item.title}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">`;
+                    contentHTML += `
+                        <div class="relative w-full h-48 mt-4 overflow-hidden rounded-lg flex-shrink-0">
+                            <img class="absolute w-full h-full object-cover" 
+                                src="${item.imageUrl}" 
+                                alt="${item.title}" 
+                                onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">
+                        </div>`;
                 }
+                
                 contentHTML += `<div class="resizer"></div>`; // Resizer handle
                 cardEl.innerHTML = contentHTML;
                 signageContentContainer.appendChild(cardEl);
@@ -623,25 +641,45 @@
             
             updateDashboardSize();
 
-            // Render on the admin panel with delete buttons
+            // Render on the admin panel with edit and delete buttons
             docs.forEach(item => {
                 const listItemEl = document.createElement('div');
                 listItemEl.className = 'admin-content-item';
                 listItemEl.innerHTML = `
                     <span>${item.title}</span>
-                    <button class="delete-btn" data-id="${item.id}">Delete</button>
+                    <div class="flex gap-2">
+                        <button class="admin-btn edit" data-id="${item.id}">Edit</button>
+                        <button class="admin-btn delete" data-id="${item.id}">Delete</button>
+                    </div>
                 `;
                 adminContentList.appendChild(listItemEl);
             });
-            
-            // Add click event listeners to the delete buttons
-            document.querySelectorAll('.delete-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const docId = e.target.dataset.id;
-                    await deleteContent(docId);
-                });
-            });
         };
+
+        // Event delegation for Edit and Delete buttons
+        adminContentList.addEventListener('click', async (e) => {
+            const button = e.target;
+            const docId = button.dataset.id;
+            if (!docId) return;
+
+            if (button.classList.contains('delete')) {
+                await deleteContent(docId);
+            } else if (button.classList.contains('edit')) {
+                const contentToEdit = allContentData.find(item => item.id === docId);
+                if (contentToEdit) {
+                    editingDocId = docId;
+                    titleInputEl.value = contentToEdit.title;
+                    messageInputEl.value = contentToEdit.message;
+                    uploadedImageUrl = contentToEdit.imageUrl;
+                    imagePreviewEl.src = uploadedImageUrl;
+                    imagePreviewEl.classList.remove('hidden');
+
+                    saveBtnEl.textContent = 'Update Content';
+                    formTitleEl.textContent = 'Edit Content';
+                    cancelBtnEl.classList.remove('hidden');
+                }
+            }
+        });
 
         // Function to delete content from Firestore
         const deleteContent = async (docId) => {
@@ -660,8 +698,8 @@
             e.preventDefault();
             errorMessageEl.textContent = '';
 
-            const title = document.getElementById('title-input').value;
-            const message = document.getElementById('message-input').value;
+            const title = titleInputEl.value;
+            const message = messageInputEl.value;
 
             if (!title) {
                 errorMessageEl.textContent = 'Title is required!';
@@ -673,37 +711,49 @@
                 return;
             }
 
+            const contentData = {
+                title: title,
+                message: message,
+                imageUrl: uploadedImageUrl,
+                timestamp: Date.now(),
+                userId: userId,
+            };
+
             try {
-                const existingCards = document.querySelectorAll('.signage-card');
-                const { x, y } = findWhitespace(Array.from(existingCards));
+                if (editingDocId) {
+                    await updateDoc(doc(db, contentCollectionPath, editingDocId), contentData);
+                    showMessage('Content updated successfully!');
+                } else {
+                    const existingCards = document.querySelectorAll('.signage-card');
+                    const { x, y } = findWhitespace(Array.from(existingCards));
+                    
+                    const newContentWithPosition = { ...contentData, x, y, width: DEFAULT_CARD_WIDTH, height: DEFAULT_CARD_HEIGHT };
+                    await addDoc(collection(db, contentCollectionPath), newContentWithPosition);
+                    showMessage('Content saved successfully!');
+                }
 
-                const newContent = {
-                    title: title,
-                    message: message,
-                    imageUrl: uploadedImageUrl,
-                    timestamp: Date.now(),
-                    userId: userId,
-                    x: x, 
-                    y: y,
-                    width: DEFAULT_CARD_WIDTH,
-                    height: DEFAULT_CARD_HEIGHT
-                };
-
-                const newDocRef = await addDoc(collection(db, contentCollectionPath), newContent);
-                console.log("Document successfully written with ID: ", newDocRef.id);
-                signageFormEl.reset();
-                imagePreviewEl.classList.add('hidden');
-                uploadedImageUrl = null;
-                showMessage('Content saved successfully!');
-                
+                resetForm();
                 updateDashboardSize();
 
             } catch (error) {
-                console.error("Error adding document: ", error);
-                errorMessageEl.textContent = 'Failed to save content. Please try again.';
+                console.error("Error saving/updating document: ", error);
+                errorMessageEl.textContent = 'Failed to save/update content. Please try again.';
             }
         });
-        
+
+        // Function to reset the form to its initial state
+        const resetForm = () => {
+            signageFormEl.reset();
+            imagePreviewEl.classList.add('hidden');
+            uploadedImageUrl = null;
+            editingDocId = null;
+            saveBtnEl.textContent = 'Save Content';
+            formTitleEl.textContent = 'Add New Content';
+            cancelBtnEl.classList.add('hidden');
+        };
+
+        cancelBtnEl.addEventListener('click', resetForm);
+
         // --- Settings Form Submission Logic ---
         settingsFormEl.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -921,8 +971,8 @@
                     }, { merge: true });
                     showMessage('Dashboard size saved!');
                 } catch (error) {
-                    console.error("Error saving dashboard size:", error);
-                    showMessage('Failed to save dashboard size.', true);
+                console.error("Error saving dashboard size:", error);
+                showMessage('Failed to save dashboard size.', true);
                 }
             }
         };
@@ -933,6 +983,7 @@
         autoRefreshTimer = setTimeout(() => {
             location.reload();
         }, 600 * 1000); // 60 seconds * 1000 milliseconds
+
     </script>
 </body>
 </html>
