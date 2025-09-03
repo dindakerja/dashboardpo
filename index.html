@@ -951,6 +951,14 @@
             document.removeEventListener('mouseup', stopDashboardResize);
             dashboardPanelEl.style.cursor = 'default';
         };
+
+                // --- Auto-refresh every 1 minute ---
+        // The application already has real-time updates from Firestore,
+        // but this will perform a full page reload for a hard refresh.
+        setTimeout(() => {
+            location.reload();
+        }, 10 * 1000); // 60 seconds * 1000 milliseconds
+        
     </script>
 </body>
 </html>
