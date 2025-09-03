@@ -10,6 +10,9 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -61,7 +64,8 @@
              box-shadow: none;
         }
         .dashboard-panel, .admin-panel {
-            background-color: white;
+            background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent */
+            backdrop-filter: blur(10px); /* Frosted glass effect */
             padding: 1.5rem;
             border-radius: 1.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -97,6 +101,7 @@
             flex-direction: column;
             justify-content: space-between;
             z-index: 10;
+            background-color: rgba(255, 255, 255, 0.9);
         }
         .signage-card:hover {
             z-index: 10;
@@ -245,8 +250,8 @@
     <div class="container">
         <!-- Dashboard Panel for Displaying Signage Content -->
         <div id="dashboard-panel" class="dashboard-panel active">
-            <h1 class="text-2xl lg:text-3xl font-extrabold mb-4 text-center">Digital Signage</h1>
-            <p class="text-lg text-center text-gray-500 mb-6">Live updates from the admin panel</p>
+            <h1 id="dashboard-title" class="text-2xl lg:text-3xl font-extrabold mb-4 text-center">Digital Signage</h1>
+            <p id="dashboard-description" class="text-lg text-center text-gray-500 mb-6">Live updates from the admin panel</p>
             <div id="loading" class="text-xl text-gray-400 text-center">Loading content...</div>
             <div id="signage-content-container" class="signage-content-grid">
                 <!-- Signage content will be injected here -->
@@ -259,18 +264,43 @@
             <h2 class="text-xl lg:text-2xl font-bold mb-3">Digital Signage Admin Panel</h2>
             <div class="text-gray-500 mb-4 text-sm">User ID: <span id="user-id">Loading...</span></div>
             
+            <h3 class="text-lg font-semibold mb-2">Dashboard Settings</h3>
+            <form id="settings-form" class="mb-6">
+                <div class="form-group">
+                    <label for="dashboard-title-input">Dashboard Title</label>
+                    <input type="text" id="dashboard-title-input" placeholder="Enter dashboard title">
+                </div>
+                <div class="form-group">
+                    <label for="dashboard-description-input">Dashboard Description</label>
+                    <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="background-image-upload-container">Background Image</label>
+                    <div id="background-drop-zone" class="drop-zone">
+                        <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
+                        <button type="button" class="btn">Select an image</button>
+                    </div>
+                    <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
+                    <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
+                </div>
+                <button type="submit" class="btn w-full">Update Settings</button>
+            </form>
+            <p id="settings-error-message" class="error-message"></p>
+
+            <hr class="my-6">
+
             <h3 class="text-lg font-semibold mb-2">Add New Content</h3>
             <form id="signage-form" class="mb-6">
                 <div class="form-group">
-                    <label for="title-input">Title</label>
+                    <label for="title-input">Content Title</label>
                     <input type="text" id="title-input" placeholder="Enter a title" required>
                 </div>
                 <div class="form-group">
-                    <label for="message-input">Message</label>
+                    <label for="message-input">Content Message</label>
                     <textarea id="message-input" rows="3" placeholder="Enter a message" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="image-upload-container">Image</label>
+                    <label for="image-upload-container">Content Image</label>
                     <div id="drop-zone" class="drop-zone">
                         <p class="text-sm text-gray-500 mb-2">Drag & drop an image here or</p>
                         <button type="button" class="btn">Select an image</button>
@@ -303,7 +333,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
         
         // Set log level for debugging
         setLogLevel('debug');
@@ -337,17 +367,14 @@
                         userIdEl.textContent = userId;
                         console.log("User authenticated:", userId);
 
-                        // This is the real-time listener that fixes the dashboard update issue
-                        if (unsubscribe) {
-                            unsubscribe();
-                        }
-                        unsubscribe = onSnapshot(collection(db, collectionPath), (snapshot) => {
-                            console.log("Firestore update received.");
+                        // Real-time listener for content cards
+                        if (unsubscribeContent) { unsubscribeContent(); }
+                        unsubscribeContent = onSnapshot(collection(db, contentCollectionPath), (snapshot) => {
+                            console.log("Firestore content update received.");
                             const docs = [];
                             snapshot.forEach(doc => {
                                 docs.push({ id: doc.id, ...doc.data() });
                             });
-                            // Sort by timestamp for consistent order
                             docs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
                             renderContent(docs);
                         }, (error) => {
@@ -357,19 +384,47 @@
                             showMessage('Error fetching content!', true);
                         });
 
+                        // Real-time listener for dashboard settings
+                        if (unsubscribeSettings) { unsubscribeSettings(); }
+                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
+                            console.log("Firestore settings update received.");
+                            if (docSnapshot.exists()) {
+                                const settings = docSnapshot.data();
+                                if (settings.backgroundImageUrl) {
+                                    document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
+                                } else {
+                                    document.body.style.backgroundImage = 'none';
+                                }
+                                if (settings.dashboardTitle) {
+                                    dashboardTitleEl.textContent = settings.dashboardTitle;
+                                }
+                                if (settings.dashboardDescription) {
+                                    dashboardDescriptionEl.textContent = settings.dashboardDescription;
+                                }
+                                // Pre-fill admin form
+                                dashboardTitleInputEl.value = settings.dashboardTitle || '';
+                                dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
+                                if (settings.backgroundImageUrl) {
+                                    backgroundImagePreviewEl.src = settings.backgroundImageUrl;
+                                    backgroundImagePreviewEl.classList.remove('hidden');
+                                } else {
+                                    backgroundImagePreviewEl.classList.add('hidden');
+                                }
+                            }
+                        }, (error) => {
+                            console.error("Error fetching settings:", error);
+                        });
+
                     } else {
                         try {
                             await signInAnonymously(auth);
                             console.log("Signed in anonymously.");
                         } catch (error) {
                             console.error("Firebase Auth error:", error);
-                            // This specific error indicates that the Anonymous Sign-in method is not enabled.
                             if (error.code === 'auth/configuration-not-found') {
                                 console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
-                                // Display a more specific error message on the UI
                                 userIdEl.textContent = 'Auth error. Check console.';
                             } else {
-                                // For other auth errors, provide a generic message
                                 userId = 'Anonymous';
                                 userIdEl.textContent = 'Error signing in.';
                             }
@@ -398,15 +453,27 @@
         const signageContentContainer = document.getElementById('signage-content-container');
         const adminContentList = document.getElementById('admin-content-list');
         const loadingListEl = document.getElementById('loading-list');
-        const formEl = document.getElementById('signage-form');
+        const signageFormEl = document.getElementById('signage-form');
+        const settingsFormEl = document.getElementById('settings-form');
         const errorMessageEl = document.getElementById('error-message');
         const messageBoxEl = document.getElementById('message-box');
         const dropZoneEl = document.getElementById('drop-zone');
         const imageFileInputEl = document.getElementById('image-file-input');
         const imagePreviewEl = document.getElementById('image-preview');
         const navBarEl = document.getElementById('nav-bar');
+        
+        // New elements for dashboard settings
+        const dashboardTitleEl = document.getElementById('dashboard-title');
+        const dashboardDescriptionEl = document.getElementById('dashboard-description');
+        const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
+        const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
+        const backgroundDropZoneEl = document.getElementById('background-drop-zone');
+        const backgroundImageFileInputEl = document.getElementById('background-image-file-input');
+        const backgroundImagePreviewEl = document.getElementById('background-image-preview');
+        const settingsErrorMessageEl = document.getElementById('settings-error-message');
 
-        // Array of background colors to cycle through
+
+        // Array of background colors to cycle through for cards
         const backgroundColors = [
             'bg-indigo-50', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-red-50',
             'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
@@ -417,6 +484,14 @@
         const GRID_SIZE = 20; // For smart placement
 
         let uploadedImageUrl = null;
+        let uploadedBgImageUrl = null;
+        let unsubscribeContent = null;
+        let unsubscribeSettings = null;
+
+        const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
+        // The error was here. Firestore document paths must have an even number of segments.
+        // We'll change the path to be a valid document reference by removing the 'data' segment.
+        const settingsDocPath = `artifacts/${appId}/public/settings`;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -449,9 +524,7 @@
         showView('dashboard'); // Start on the dashboard view
 
         // --- Firestore Data Management and Rendering ---
-        const collectionPath = `artifacts/${appId}/public/data/signage_content`;
-        let unsubscribe = null; // Variable to hold the unsubscribe function
-
+        
         // Function to update the size of the dashboard container
         const updateDashboardSize = () => {
             const cards = document.querySelectorAll('.signage-card');
@@ -483,8 +556,8 @@
             });
 
             // Grid-based search for open space
-            for (let y = 20; y < 1000; y += GRID_SIZE) {
-                for (let x = 20; x < 1000; x += GRID_SIZE) {
+            for (let y = 20; y < 10000; y += GRID_SIZE) {
+                for (let x = 20; x < 10000; x += GRID_SIZE) {
                     const newRect = {
                         left: x,
                         top: y,
@@ -581,7 +654,7 @@
         const deleteContent = async (docId) => {
             if (!docId || !auth.currentUser) return;
             try {
-                await deleteDoc(doc(db, collectionPath, docId));
+                await deleteDoc(doc(db, contentCollectionPath, docId));
                 showMessage('Content successfully deleted!');
             } catch (error) {
                 console.error("Error deleting document: ", error);
@@ -589,8 +662,8 @@
             }
         };
 
-        // --- Form Submission Logic ---
-        formEl.addEventListener('submit', async (e) => {
+        // --- Content Form Submission Logic ---
+        signageFormEl.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMessageEl.textContent = '';
 
@@ -608,7 +681,6 @@
             }
 
             try {
-                // Find a good starting position
                 const existingCards = document.querySelectorAll('.signage-card');
                 const { x, y } = findWhitespace(Array.from(existingCards));
 
@@ -624,10 +696,9 @@
                     height: DEFAULT_CARD_HEIGHT
                 };
 
-                // Add the new content to the Firestore collection
-                const newDocRef = await addDoc(collection(db, collectionPath), newContent);
+                const newDocRef = await addDoc(collection(db, contentCollectionPath), newContent);
                 console.log("Document successfully written with ID: ", newDocRef.id);
-                formEl.reset();
+                signageFormEl.reset();
                 imagePreviewEl.classList.add('hidden');
                 uploadedImageUrl = null;
                 showMessage('Content saved successfully!');
@@ -639,8 +710,39 @@
                 errorMessageEl.textContent = 'Failed to save content. Please try again.';
             }
         });
+        
+        // --- Settings Form Submission Logic ---
+        settingsFormEl.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            settingsErrorMessageEl.textContent = '';
+            
+            const newTitle = dashboardTitleInputEl.value;
+            const newDescription = dashboardDescriptionInputEl.value;
 
-        // --- Image Upload Logic ---
+            const settingsData = {
+                dashboardTitle: newTitle,
+                dashboardDescription: newDescription,
+                backgroundImageUrl: uploadedBgImageUrl
+            };
+            
+            try {
+                // Check if doc exists, if not, create it
+                const docRef = doc(db, settingsDocPath);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    await updateDoc(docRef, settingsData);
+                } else {
+                    await setDoc(docRef, settingsData);
+                }
+                
+                showMessage('Settings updated successfully!');
+            } catch (error) {
+                console.error("Error updating settings: ", error);
+                settingsErrorMessageEl.textContent = 'Failed to update settings. Please try again.';
+            }
+        });
+
+        // --- Content Image Upload Logic ---
         const handleImageFile = (file) => {
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
@@ -655,35 +757,56 @@
             }
         };
 
-        // Handle file selection via button click
-        dropZoneEl.addEventListener('click', () => {
-            imageFileInputEl.click();
-        });
-
+        dropZoneEl.addEventListener('click', () => { imageFileInputEl.click(); });
         imageFileInputEl.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 handleImageFile(e.target.files[0]);
             }
         });
 
-        // Handle drag and drop
-        dropZoneEl.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZoneEl.classList.add('active');
-        });
+        // --- Background Image Upload Logic ---
+        const handleBgImageFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedBgImageUrl = e.target.result;
+                    backgroundImagePreviewEl.src = uploadedBgImageUrl;
+                    backgroundImagePreviewEl.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showMessage('Please select a valid image file.', true);
+            }
+        };
 
-        dropZoneEl.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZoneEl.classList.remove('active');
-        });
-
-        dropZoneEl.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZoneEl.classList.remove('active');
-            if (e.dataTransfer.files.length > 0) {
-                handleImageFile(e.dataTransfer.files[0]);
+        backgroundDropZoneEl.addEventListener('click', () => { backgroundImageFileInputEl.click(); });
+        backgroundImageFileInputEl.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleBgImageFile(e.target.files[0]);
             }
         });
+
+        // Handle drag and drop for both types of images
+        const setupDropZone = (element, handler) => {
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                element.classList.add('active');
+            });
+            element.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                element.classList.remove('active');
+            });
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                element.classList.remove('active');
+                if (e.dataTransfer.files.length > 0) {
+                    handler(e.dataTransfer.files[0]);
+                }
+            });
+        };
+        setupDropZone(dropZoneEl, handleImageFile);
+        setupDropZone(backgroundDropZoneEl, handleBgImageFile);
+
 
         // --- Draggable and Resizable Logic ---
         const makeDraggableAndResizable = (element, docId) => {
@@ -692,7 +815,6 @@
             let isResizing = false;
             let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
 
-            // Mouse down for dragging
             const dragMouseDown = (e) => {
                 if (e.target !== resizer) {
                     isDragging = true;
@@ -707,7 +829,6 @@
                 }
             };
 
-            // Mouse move for dragging
             const dragMouseMove = (e) => {
                 if (isDragging) {
                     const dx = e.clientX - initialX;
@@ -716,7 +837,6 @@
                     let newX = currentX + dx;
                     let newY = currentY + dy;
 
-                    // Boundary checks
                     newX = Math.max(0, newX);
                     newY = Math.max(0, newY);
 
@@ -726,7 +846,6 @@
                 }
             };
 
-            // Mouse up for dragging
             const dragMouseUp = async (e) => {
                 if (isDragging) {
                     isDragging = false;
@@ -737,14 +856,13 @@
 
                     const newX = element.offsetLeft;
                     const newY = element.offsetTop;
-                    await updateDoc(doc(db, collectionPath, docId), { x: newX, y: newY });
+                    await updateDoc(doc(db, contentCollectionPath, docId), { x: newX, y: newY });
                 }
             };
             
-            // Mouse down for resizing
             const resizeMouseDown = (e) => {
                 isResizing = true;
-                e.stopPropagation(); // Stop event bubbling to prevent dragging
+                e.stopPropagation();
                 initialX = e.clientX;
                 initialY = e.clientY;
                 initialWidth = element.offsetWidth;
@@ -754,7 +872,6 @@
                 element.classList.add('active-drag');
             };
 
-            // Mouse move for resizing
             const resizeMouseMove = (e) => {
                 if (isResizing) {
                     const dx = e.clientX - initialX;
@@ -763,7 +880,6 @@
                     let newWidth = initialWidth + dx;
                     let newHeight = initialHeight + dy;
 
-                    // Ensure card is at least a certain size
                     newWidth = Math.max(newWidth, 250);
                     newHeight = Math.max(newHeight, 200);
                     
@@ -773,7 +889,6 @@
                 }
             };
             
-            // Mouse up for resizing
             const resizeMouseUp = async () => {
                 if (isResizing) {
                     isResizing = false;
@@ -782,7 +897,7 @@
                     element.classList.remove('active-drag');
                     const newWidth = element.offsetWidth;
                     const newHeight = element.offsetHeight;
-                    await updateDoc(doc(db, collectionPath, docId), { width: newWidth, height: newHeight });
+                    await updateDoc(doc(db, contentCollectionPath, docId), { width: newWidth, height: newHeight });
                 }
             };
 
@@ -791,11 +906,10 @@
         };
         
         // --- Dashboard Resizing Logic ---
-        const dashboardResizer = document.getElementById('dashboard-resizer');
         let isDashboardResizing = false;
         let initialMouseX, initialMouseY, initialWidth, initialHeight;
 
-        dashboardResizer.addEventListener('mousedown', (e) => {
+        dashboardResizerEl.addEventListener('mousedown', (e) => {
             isDashboardResizing = true;
             initialMouseX = e.clientX;
             initialMouseY = e.clientY;
