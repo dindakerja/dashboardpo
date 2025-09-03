@@ -80,22 +80,24 @@
             display: block;
         }
         .signage-content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1rem;
-            width: 100%;
+            position: relative;
+            min-height: 500px;
         }
         .signage-card {
             padding: 1.5rem;
             border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.2s ease-in-out;
+            position: absolute; /* Allows for drag and drop positioning */
+            min-width: 250px;
+            min-height: 200px;
+            max-width: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transition: transform 0.2s ease-in-out;
         }
         .signage-card:hover {
-            transform: translateY(-5px);
+            z-index: 10;
         }
         .signage-card h3 {
             font-size: 1.25rem;
@@ -111,6 +113,7 @@
             max-width: 100%;
             border-radius: 0.75rem;
             margin-top: 0.75rem;
+            pointer-events: none; /* Prevents dragging issues with the image */
         }
         .form-group {
             margin-bottom: 1rem;
@@ -214,6 +217,16 @@
             border-color: #6366f1;
             background-color: #eef2ff;
         }
+        .resizer {
+            width: 15px;
+            height: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: se-resize;
+            border-bottom-right-radius: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -278,7 +291,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
         
         // Set log level for debugging
         setLogLevel('debug');
@@ -438,6 +451,7 @@
             docs.forEach((item, index) => {
                 const cardEl = document.createElement('div');
                 cardEl.className = `signage-card ${backgroundColors[index % backgroundColors.length]}`;
+                cardEl.id = `card-${item.id}`;
                 
                 let contentHTML = `
                     <h3 class="text-gray-800">${item.title}</h3>
@@ -446,8 +460,22 @@
                 if (item.imageUrl) {
                     contentHTML += `<img src="${item.imageUrl}" alt="${item.title}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">`;
                 }
+                contentHTML += `<div class="resizer"></div>`; // Resizer handle
                 cardEl.innerHTML = contentHTML;
                 signageContentContainer.appendChild(cardEl);
+                
+                // Apply saved position and size
+                if (item.x !== undefined && item.y !== undefined) {
+                    cardEl.style.left = `${item.x}px`;
+                    cardEl.style.top = `${item.y}px`;
+                }
+                if (item.width !== undefined && item.height !== undefined) {
+                    cardEl.style.width = `${item.width}px`;
+                    cardEl.style.height = `${item.height}px`;
+                }
+
+                // Make the card draggable and resizable
+                makeDraggableAndResizable(cardEl, item.id);
             });
 
             // Render on the admin panel with delete buttons
@@ -568,6 +596,88 @@
             }
         });
 
+        // --- Draggable and Resizable Logic ---
+        const makeDraggableAndResizable = (element, docId) => {
+            const resizer = element.querySelector('.resizer');
+            let isDragging = false;
+            let isResizing = false;
+            let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
+
+            // Mouse down for dragging
+            const dragMouseDown = (e) => {
+                if (e.target !== resizer) {
+                    isDragging = true;
+                    initialX = e.clientX;
+                    initialY = e.clientY;
+                    currentX = element.offsetLeft;
+                    currentY = element.offsetTop;
+                    document.addEventListener('mousemove', dragMouseMove);
+                    document.addEventListener('mouseup', dragMouseUp);
+                    element.style.cursor = 'grabbing';
+                }
+            };
+
+            // Mouse move for dragging
+            const dragMouseMove = (e) => {
+                if (isDragging) {
+                    const dx = e.clientX - initialX;
+                    const dy = e.clientY - initialY;
+                    element.style.left = `${currentX + dx}px`;
+                    element.style.top = `${currentY + dy}px`;
+                }
+            };
+
+            // Mouse up for dragging
+            const dragMouseUp = async (e) => {
+                if (isDragging) {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', dragMouseMove);
+                    document.removeEventListener('mouseup', dragMouseUp);
+                    element.style.cursor = 'grab';
+
+                    const newX = element.offsetLeft;
+                    const newY = element.offsetTop;
+                    await updateDoc(doc(db, collectionPath, docId), { x: newX, y: newY });
+                }
+            };
+            
+            // Mouse down for resizing
+            const resizeMouseDown = (e) => {
+                isResizing = true;
+                e.stopPropagation(); // Stop event bubbling to prevent dragging
+                initialX = e.clientX;
+                initialY = e.clientY;
+                initialWidth = element.offsetWidth;
+                initialHeight = element.offsetHeight;
+                document.addEventListener('mousemove', resizeMouseMove);
+                document.addEventListener('mouseup', resizeMouseUp);
+            };
+
+            // Mouse move for resizing
+            const resizeMouseMove = (e) => {
+                if (isResizing) {
+                    const dx = e.clientX - initialX;
+                    const dy = e.clientY - initialY;
+                    element.style.width = `${initialWidth + dx}px`;
+                    element.style.height = `${initialHeight + dy}px`;
+                }
+            };
+            
+            // Mouse up for resizing
+            const resizeMouseUp = async () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', resizeMouseMove);
+                    document.removeEventListener('mouseup', resizeMouseUp);
+                    const newWidth = element.offsetWidth;
+                    const newHeight = element.offsetHeight;
+                    await updateDoc(doc(db, collectionPath, docId), { width: newWidth, height: newHeight });
+                }
+            };
+
+            element.addEventListener('mousedown', dragMouseDown);
+            resizer.addEventListener('mousedown', resizeMouseDown);
+        };
     </script>
 </body>
 </html>
