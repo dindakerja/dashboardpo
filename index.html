@@ -9,10 +9,10 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            background-image: url('https://picsum.photos/1920/1080');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-image: url('https://pin.it/L8jD8bnZ0');
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -277,18 +277,8 @@
                             <label for="dashboard-description-input">Dashboard Description</label>
                             <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
                         </div>
-                        <div class="form-group">
-                            <label for="background-image-upload-container">Background Image</label>
-                            <div id="background-drop-zone" class="drop-zone">
-                                <p class="text-sm text-gray-500 mb-2">Drag & drop a background image here or</p>
-                                <button type="button" class="btn">Select an image</button>
-                            </div>
-                            <input type="file" id="background-image-file-input" class="hidden" accept="image/*">
-                            <img id="background-image-preview" src="" alt="Background Image Preview" class="hidden mt-4 rounded-lg">
-                        </div>
                         <button type="submit" class="btn w-full">Update Settings</button>
                     </form>
-                    <p id="settings-error-message" class="error-message"></p>
                 </div>
                 
                 <!-- Content Management on the right -->
@@ -417,12 +407,7 @@
                             console.log("Firestore settings update received.");
                             if (docSnapshot.exists()) {
                                 const settings = docSnapshot.data();
-                                // Apply background image
-                                if (settings.backgroundImageUrl) {
-                                    document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
-                                } else {
-                                    document.body.style.backgroundImage = 'none';
-                                }
+                                
                                 // Apply dashboard title and description
                                 if (settings.dashboardTitle) {
                                     dashboardTitleEl.textContent = settings.dashboardTitle;
@@ -438,12 +423,6 @@
                                 // Pre-fill admin form
                                 dashboardTitleInputEl.value = settings.dashboardTitle || '';
                                 dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
-                                if (settings.backgroundImageUrl) {
-                                    backgroundImagePreviewEl.src = settings.backgroundImageUrl;
-                                    backgroundImagePreviewEl.classList.remove('hidden');
-                                } else {
-                                    backgroundImagePreviewEl.classList.add('hidden');
-                                }
                             }
                         }, (error) => {
                             console.error("Error fetching settings:", error);
@@ -493,10 +472,6 @@
         const dashboardDescriptionEl = document.getElementById('dashboard-description');
         const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
         const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
-        const backgroundDropZoneEl = document.getElementById('background-drop-zone');
-        const backgroundImageFileInputEl = document.getElementById('background-image-file-input');
-        const backgroundImagePreviewEl = document.getElementById('background-image-preview');
-        const settingsErrorMessageEl = document.getElementById('settings-error-message');
 
 
         // Array of background colors to cycle through for cards
@@ -510,7 +485,6 @@
         const GRID_SIZE = 20; // For smart placement
 
         let uploadedImageUrl = null;
-        let uploadedBgImageUrl = null;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -733,20 +707,18 @@
         // --- Settings Form Submission Logic ---
         settingsFormEl.addEventListener('submit', async (e) => {
             e.preventDefault();
-            settingsErrorMessageEl.textContent = '';
             
             const newTitle = dashboardTitleInputEl.value;
             const newDescription = dashboardDescriptionInputEl.value;
             
             if (!isFirebaseReady) {
-                settingsErrorMessageEl.textContent = 'Connecting to database. Please wait a moment and try again.';
+                showMessage('Connecting to database. Please wait a moment and try again.', true);
                 return;
             }
 
             const settingsData = {
                 dashboardTitle: newTitle,
                 dashboardDescription: newDescription,
-                backgroundImageUrl: uploadedBgImageUrl
             };
             
             try {
@@ -756,7 +728,7 @@
                 showMessage('Settings updated successfully!');
             } catch (error) {
                 console.error("Error updating settings: ", error);
-                settingsErrorMessageEl.textContent = 'Failed to update settings. Please try again.';
+                showMessage('Failed to update settings. Please try again.', true);
             }
         });
 
@@ -782,29 +754,7 @@
             }
         });
 
-        // --- Background Image Upload Logic ---
-        const handleBgImageFile = (file) => {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    uploadedBgImageUrl = e.target.result;
-                    backgroundImagePreviewEl.src = uploadedBgImageUrl;
-                    backgroundImagePreviewEl.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                showMessage('Please select a valid image file.', true);
-            }
-        };
-
-        backgroundDropZoneEl.addEventListener('click', () => { backgroundImageFileInputEl.click(); });
-        backgroundImageFileInputEl.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleBgImageFile(e.target.files[0]);
-            }
-        });
-
-        // Handle drag and drop for both types of images
+        // Handle drag and drop for images
         const setupDropZone = (element, handler) => {
             element.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -823,7 +773,6 @@
             });
         };
         setupDropZone(dropZoneEl, handleImageFile);
-        setupDropZone(backgroundDropZoneEl, handleBgImageFile);
 
 
         // --- Draggable and Resizable Logic ---
@@ -928,6 +877,7 @@
         };
         
         // --- Dashboard Resizing Logic ---
+        // This section handles the logic for resizing the main dashboard container.
         let isDashboardResizing = false;
         let initialMouseX, initialMouseY, initialWidth, initialHeight;
 
@@ -961,9 +911,10 @@
             document.removeEventListener('mouseup', stopDashboardResize);
             dashboardPanelEl.style.cursor = 'default';
 
-            // Save the new dashboard size to Firestore
+            // --- THIS IS WHERE THE DASHBOARD SIZE IS SAVED TO FIREBASE ---
             if (isFirebaseReady) {
                 try {
+                    console.log("Saving dashboard size to Firestore...");
                     await setDoc(doc(db, settingsDocPath), {
                         dashboardWidth: dashboardPanelEl.offsetWidth,
                         dashboardHeight: dashboardPanelEl.offsetHeight
