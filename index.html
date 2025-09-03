@@ -66,6 +66,7 @@
             border-radius: 1.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             min-height: 500px;
+            position: relative;
         }
         .dashboard-panel {
             display: none;
@@ -234,6 +235,9 @@
             cursor: se-resize;
             border-bottom-right-radius: 1rem;
         }
+        #dashboard-panel .resizer {
+            border-radius: 0 0 1.5rem 0;
+        }
     </style>
 </head>
 <body>
@@ -247,6 +251,7 @@
             <div id="signage-content-container" class="signage-content-grid">
                 <!-- Signage content will be injected here -->
             </div>
+            <div id="dashboard-resizer" class="resizer"></div>
         </div>
 
         <!-- Admin Panel for Inputting Content -->
@@ -298,7 +303,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
         
         // Set log level for debugging
         setLogLevel('debug');
@@ -384,6 +389,7 @@
 
         // --- DOM Elements ---
         const dashboardPanelEl = document.getElementById('dashboard-panel');
+        const dashboardResizerEl = document.getElementById('dashboard-resizer');
         const adminPanelEl = document.getElementById('admin-panel');
         const dashboardLinkEl = document.getElementById('dashboard-link');
         const adminLinkEl = document.getElementById('admin-link');
@@ -408,7 +414,8 @@
         
         const DEFAULT_CARD_WIDTH = 300;
         const DEFAULT_CARD_HEIGHT = 200;
-        
+        const GRID_SIZE = 20; // For smart placement
+
         let uploadedImageUrl = null;
 
         // Function to display a temporary message box
@@ -459,8 +466,49 @@
             });
             
             // Add some padding to the max values
-            signageContentContainer.style.minWidth = `${Math.max(maxX + 50, 900)}px`;
-            signageContentContainer.style.minHeight = `${Math.max(maxY + 50, 500)}px`;
+            dashboardPanelEl.style.minWidth = `${Math.max(maxX + 50, 900)}px`;
+            dashboardPanelEl.style.minHeight = `${Math.max(maxY + 50, 500)}px`;
+        };
+
+        // Function to find the first available whitespace for a new card
+        const findWhitespace = (cards) => {
+            const occupied = cards.map(card => {
+                const rect = card.getBoundingClientRect();
+                return {
+                    left: card.offsetLeft,
+                    top: card.offsetTop,
+                    right: card.offsetLeft + card.offsetWidth,
+                    bottom: card.offsetTop + card.offsetHeight
+                };
+            });
+
+            // Grid-based search for open space
+            for (let y = 20; y < 1000; y += GRID_SIZE) {
+                for (let x = 20; x < 1000; x += GRID_SIZE) {
+                    const newRect = {
+                        left: x,
+                        top: y,
+                        right: x + DEFAULT_CARD_WIDTH,
+                        bottom: y + DEFAULT_CARD_HEIGHT
+                    };
+                    
+                    let isOverlap = false;
+                    for (const o of occupied) {
+                        if (newRect.left < o.right && newRect.right > o.left &&
+                            newRect.top < o.bottom && newRect.bottom > o.top) {
+                            isOverlap = true;
+                            break;
+                        }
+                    }
+
+                    if (!isOverlap) {
+                        return { x, y };
+                    }
+                }
+            }
+
+            // Fallback if no easy space is found
+            return { x: 20, y: 20 };
         };
 
         // Function to render all content on both the dashboard and admin panel
@@ -560,14 +608,18 @@
             }
 
             try {
+                // Find a good starting position
+                const existingCards = document.querySelectorAll('.signage-card');
+                const { x, y } = findWhitespace(Array.from(existingCards));
+
                 const newContent = {
                     title: title,
                     message: message,
                     imageUrl: uploadedImageUrl,
                     timestamp: Date.now(),
                     userId: userId,
-                    x: 20, // Fixed initial X position
-                    y: 20, // Fixed initial Y position
+                    x: x, 
+                    y: y,
                     width: DEFAULT_CARD_WIDTH,
                     height: DEFAULT_CARD_HEIGHT
                 };
@@ -640,10 +692,6 @@
             let isResizing = false;
             let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
 
-            // Get boundaries
-            const containerRect = signageContentContainer.getBoundingClientRect();
-            const navbarHeight = navBarEl.offsetHeight;
-
             // Mouse down for dragging
             const dragMouseDown = (e) => {
                 if (e.target !== resizer) {
@@ -670,9 +718,7 @@
 
                     // Boundary checks
                     newX = Math.max(0, newX);
-                    newX = Math.min(newX, signageContentContainer.offsetWidth - element.offsetWidth);
                     newY = Math.max(0, newY);
-                    newY = Math.min(newY, signageContentContainer.offsetHeight - element.offsetHeight - navbarHeight);
 
                     element.style.left = `${newX}px`;
                     element.style.top = `${newY}px`;
@@ -717,9 +763,9 @@
                     let newWidth = initialWidth + dx;
                     let newHeight = initialHeight + dy;
 
-                    // Boundary checks
-                    newWidth = Math.min(newWidth, signageContentContainer.offsetWidth - element.offsetLeft);
-                    newHeight = Math.min(newHeight, signageContentContainer.offsetHeight - element.offsetTop - navbarHeight);
+                    // Ensure card is at least a certain size
+                    newWidth = Math.max(newWidth, 250);
+                    newHeight = Math.max(newHeight, 200);
                     
                     element.style.width = `${newWidth}px`;
                     element.style.height = `${newHeight}px`;
@@ -742,6 +788,42 @@
 
             element.addEventListener('mousedown', dragMouseDown);
             resizer.addEventListener('mousedown', resizeMouseDown);
+        };
+        
+        // --- Dashboard Resizing Logic ---
+        const dashboardResizer = document.getElementById('dashboard-resizer');
+        let isDashboardResizing = false;
+        let initialMouseX, initialMouseY, initialWidth, initialHeight;
+
+        dashboardResizer.addEventListener('mousedown', (e) => {
+            isDashboardResizing = true;
+            initialMouseX = e.clientX;
+            initialMouseY = e.clientY;
+            initialWidth = dashboardPanelEl.offsetWidth;
+            initialHeight = dashboardPanelEl.offsetHeight;
+            document.addEventListener('mousemove', handleDashboardResize);
+            document.addEventListener('mouseup', stopDashboardResize);
+            dashboardPanelEl.style.cursor = 'se-resize';
+        });
+
+        const handleDashboardResize = (e) => {
+            if (isDashboardResizing) {
+                const dx = e.clientX - initialMouseX;
+                const dy = e.clientY - initialMouseY;
+                
+                const newWidth = initialWidth + dx;
+                const newHeight = initialHeight + dy;
+
+                dashboardPanelEl.style.width = `${Math.max(newWidth, 900)}px`;
+                dashboardPanelEl.style.height = `${Math.max(newHeight, 500)}px`;
+            }
+        };
+
+        const stopDashboardResize = () => {
+            isDashboardResizing = false;
+            document.removeEventListener('mousemove', handleDashboardResize);
+            document.removeEventListener('mouseup', stopDashboardResize);
+            dashboardPanelEl.style.cursor = 'default';
         };
     </script>
 </body>
