@@ -324,9 +324,13 @@
                             // This specific error indicates that the Anonymous Sign-in method is not enabled.
                             if (error.code === 'auth/configuration-not-found') {
                                 console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
+                                // Display a more specific error message on the UI
+                                userIdEl.textContent = 'Auth error. Check console.';
+                            } else {
+                                // For other auth errors, provide a generic message
+                                userId = 'Anonymous';
+                                userIdEl.textContent = 'Error signing in.';
                             }
-                            userId = 'Anonymous';
-                            userIdEl.textContent = 'Error signing in.';
                         }
                     }
                 });
