@@ -358,15 +358,32 @@
         // --- Firebase Initialization and Authentication ---
         let app, db, auth;
         let userId = 'loading...';
-        
+        let unsubscribeContent = null;
+        let unsubscribeSettings = null;
+
+        const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
+        const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
+
         // Check if the firebase config is valid
         if (firebaseConfig.projectId && !firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
             try {
+                // Initialize Firebase services outside of the auth listener for quicker setup
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Handles user authentication state changes
+                // Immediately attempt to sign in anonymously
+                signInAnonymously(auth).then(() => {
+                    console.log("Signed in anonymously.");
+                }).catch((error) => {
+                    console.error("Firebase Auth error:", error);
+                    if (error.code === 'auth/configuration-not-found') {
+                        console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
+                        userIdEl.textContent = 'Auth error. Check console.';
+                    }
+                });
+
+                // Handles user authentication state changes and sets up listeners
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
@@ -392,51 +409,38 @@
 
                         // Real-time listener for dashboard settings
                         if (unsubscribeSettings) { unsubscribeSettings(); }
-                        if (db) { // Check if db is initialized before trying to use it
-                             unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
-                                console.log("Firestore settings update received.");
-                                if (docSnapshot.exists()) {
-                                    const settings = docSnapshot.data();
-                                    if (settings.backgroundImageUrl) {
-                                        document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
-                                    } else {
-                                        document.body.style.backgroundImage = 'none';
-                                    }
-                                    if (settings.dashboardTitle) {
-                                        dashboardTitleEl.textContent = settings.dashboardTitle;
-                                    }
-                                    if (settings.dashboardDescription) {
-                                        dashboardDescriptionEl.textContent = settings.dashboardDescription;
-                                    }
-                                    // Pre-fill admin form
-                                    dashboardTitleInputEl.value = settings.dashboardTitle || '';
-                                    dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
-                                    if (settings.backgroundImageUrl) {
-                                        backgroundImagePreviewEl.src = settings.backgroundImageUrl;
-                                        backgroundImagePreviewEl.classList.remove('hidden');
-                                    } else {
-                                        backgroundImagePreviewEl.classList.add('hidden');
-                                    }
+                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
+                            console.log("Firestore settings update received.");
+                            if (docSnapshot.exists()) {
+                                const settings = docSnapshot.data();
+                                if (settings.backgroundImageUrl) {
+                                    document.body.style.backgroundImage = `url('${settings.backgroundImageUrl}')`;
+                                } else {
+                                    document.body.style.backgroundImage = 'none';
                                 }
-                            }, (error) => {
-                                console.error("Error fetching settings:", error);
-                            });
-                        }
-
-                    } else {
-                        try {
-                            await signInAnonymously(auth);
-                            console.log("Signed in anonymously.");
-                        } catch (error) {
-                            console.error("Firebase Auth error:", error);
-                            if (error.code === 'auth/configuration-not-found') {
-                                console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
-                                userIdEl.textContent = 'Auth error. Check console.';
-                            } else {
-                                userId = 'Anonymous';
-                                userIdEl.textContent = 'Error signing in.';
+                                if (settings.dashboardTitle) {
+                                    dashboardTitleEl.textContent = settings.dashboardTitle;
+                                }
+                                if (settings.dashboardDescription) {
+                                    dashboardDescriptionEl.textContent = settings.dashboardDescription;
+                                }
+                                // Pre-fill admin form
+                                dashboardTitleInputEl.value = settings.dashboardTitle || '';
+                                dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
+                                if (settings.backgroundImageUrl) {
+                                    backgroundImagePreviewEl.src = settings.backgroundImageUrl;
+                                    backgroundImagePreviewEl.classList.remove('hidden');
+                                } else {
+                                    backgroundImagePreviewEl.classList.add('hidden');
+                                }
                             }
-                        }
+                        }, (error) => {
+                            console.error("Error fetching settings:", error);
+                        });
+                    } else {
+                        userId = 'Anonymous';
+                        userIdEl.textContent = 'Not authenticated';
+                        console.log("No user authenticated.");
                     }
                 });
 
@@ -493,14 +497,6 @@
 
         let uploadedImageUrl = null;
         let uploadedBgImageUrl = null;
-        let unsubscribeContent = null;
-        let unsubscribeSettings = null;
-
-        const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
-        // FIX: The path was invalid because it had an odd number of segments.
-        // We need a path in the format "collection/document/collection/document...".
-        // Changed `settings` to a collection and gave the document a new ID.
-        const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
 
         // Function to display a temporary message box
         const showMessage = (message, isError = false) => {
@@ -740,14 +736,8 @@
             };
             
             try {
-                // Check if doc exists, if not, create it
-                const docRef = doc(db, settingsDocPath);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    await updateDoc(docRef, settingsData);
-                } else {
-                    await setDoc(docRef, settingsData);
-                }
+                // Use setDoc with a specific document path to create or update the single settings document
+                await setDoc(doc(db, settingsDocPath), settingsData, { merge: true });
                 
                 showMessage('Settings updated successfully!');
             } catch (error) {
