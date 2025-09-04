@@ -34,14 +34,15 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 1rem;
+            /* Made smaller and more transparent */
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 0.5rem;
             border-top: 1px solid #e5e7eb;
             backdrop-filter: blur(10px);
             z-index: 50;
         }
         .nav-link {
-            padding: 0.5rem 1rem;
+            padding: 0.5rem;
             border-radius: 9999px;
             font-weight: 600;
             cursor: pointer;
@@ -49,6 +50,9 @@
             border: 2px solid transparent;
             color: #6b7280;
             font-size: 0.875rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .nav-link.active {
             color: #6366f1;
@@ -320,8 +324,14 @@
 
     <!-- Navigation bar moved to the bottom -->
     <nav id="nav-bar" class="nav-bar">
-        <button id="dashboard-link" class="nav-link active">Dashboard</button>
-        <button id="admin-link" class="nav-link">Admin Panel</button>
+        <button id="dashboard-link" class="nav-link active">
+            <!-- Home Icon SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+        <button id="admin-link" class="nav-link">
+            <!-- New Admin Panel Icon: Dashboard Layout -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        </button>
     </nav>
 
     <!-- Message box for success/error messages -->
@@ -329,9 +339,9 @@
 
     <!-- Firebase Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Set log level for debugging
         setLogLevel('debug');
@@ -405,7 +415,7 @@
 
                         // Real-time listener for dashboard settings
                         if (unsubscribeSettings) { unsubscribeSettings(); }
-                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), (docSnapshot) => {
+                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), async (docSnapshot) => {
                             console.log("Firestore settings update received.");
                             if (docSnapshot.exists()) {
                                 const settings = docSnapshot.data();
@@ -425,6 +435,20 @@
                                 // Pre-fill admin form
                                 dashboardTitleInputEl.value = settings.dashboardTitle || '';
                                 dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
+                            } else {
+                                // If the document doesn't exist, create it with default values
+                                const defaultSettings = {
+                                    dashboardTitle: "Digital Signage",
+                                    dashboardDescription: "Live updates from the admin panel",
+                                    dashboardWidth: 900,
+                                    dashboardHeight: 500
+                                };
+                                try {
+                                    await setDoc(doc(db, settingsDocPath), defaultSettings);
+                                    console.log("Default settings document created.");
+                                } catch (error) {
+                                    console.error("Error creating default settings document:", error);
+                                }
                             }
                         }, (error) => {
                             console.error("Error fetching settings:", error);
@@ -887,7 +911,7 @@
                 initialWidth = element.offsetWidth;
                 initialHeight = element.offsetHeight;
                 document.addEventListener('mousemove', resizeMouseMove);
-                document.addEventListener('mouseup', resizeMouseUp);
+                    document.addEventListener('mouseup', resizeMouseUp);
                 element.classList.add('active-drag');
             };
 
