@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Signage Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: url('background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            display: flex;
+            justify-content: left;
+            align-items: flex-start;
+            min-height: 100vh;
+            color: #1f2937;
+        }
+        .container {
+            max-width: 2000px;
+            width: 100%;
+            padding: 0.5rem 1rem;
+            margin-top: 1rem;
+            margin-bottom: 5rem;
+        }
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            /* Made smaller and more transparent */
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 0.25rem;
+            border-top: 1px solid #e5e7eb;
+            backdrop-filter: blur(10px);
+            z-index: 50;
+        }
+        .nav-link {
+            padding: 0.25rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+            color: #6b7280;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .nav-link.active {
+            color: #6366f1;
+            border-color: #6366f1;
+            box-shadow: none;
+        }
+        .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .nav-link.active:hover {
+             transform: none;
+             box-shadow: none;
+        }
+        .dashboard-panel, .admin-panel {
+            background-color: rgba(255, 255, 255, 0.5); /* Semi-transparent */
+            backdrop-filter: blur(10px); /* Frosted glass effect */
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            min-width: 1700px;
+            min-height: 500px;
+            position: relative;
+        }
+        .dashboard-panel {
+            display: none;
+        }
+        .dashboard-panel.active {
+            display: block;
+        }
+        .admin-panel {
+            display: none;
+        }
+        .admin-panel.active {
+            display: block;
+        }
+        .signage-content-grid {
+            position: relative;
+            min-height: 500px;
+        }
+        .signage-card {
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: background-color 0.2s ease-in-out;
+            position: absolute; /* Allows for drag and drop positioning */
+            min-width: 250px;
+            min-height: 200px;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        .signage-card:hover {
+            z-index: 10;
+        }
+        .signage-card.active-drag {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 20;
+        }
+        .signage-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .signage-card pre {
+            font-size: 0.875rem;
+            color: #4b5563;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #6366f1;
+        }
+        .btn {
+            background-color: #6366f1;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 0.875rem;
+        }
+        .btn:hover {
+            background-color: #4f46e5;
+        }
+        .error-message {
+            color: #ef4444;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .message-box {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #10b981;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1-px rgba(0, 0, 0, 0.06);
+            z-index: 100;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateY(-100px);
+            opacity: 0;
+            font-size: 0.875rem;
+        }
+        .message-box.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .admin-btn {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border: none;
+            font-size: 0.75rem;
+        }
+        .admin-btn.delete {
+            background-color: #ef4444;
+        }
+        .admin-btn.delete:hover {
+            background-color: #dc2626;
+        }
+        .admin-btn.edit {
+            background-color: #f59e0b;
+        }
+        .admin-btn.edit:hover {
+            background-color: #d97706;
+        }
+        .admin-content-list {
+            margin-top: 1rem;
+        }
+        .admin-content-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f9fafb;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .admin-content-item span {
+            font-weight: 600;
+            color: #374151;
+        }
+        .drop-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            transition: border-color 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+        .drop-zone:hover, .drop-zone.active {
+            border-color: #6366f1;
+            background-color: #eef2ff;
+        }
+        .resizer {
+            width: 15px;
+            height: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: se-resize;
+            border-bottom-right-radius: 1rem;
+        }
+        #dashboard-panel .resizer {
+            border-radius: 0 0 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Dashboard Panel for Displaying Signage Content -->
+        <div id="dashboard-panel" class="dashboard-panel active">
+            <h1 id="dashboard-title" class="text-2xl lg:text-3xl font-extrabold mb-4 text-center">Digital Signage</h1>
+            <p id="dashboard-description" class="text-lg text-center text-gray-500 mb-6">Live updates from the admin panel</p>
+            <div id="loading" class="text-xl text-gray-400 text-center">Loading content...</div>
+            <div id="signage-content-container" class="signage-content-grid">
+                <!-- Signage content will be injected here -->
+            </div>
+            <div id="dashboard-resizer" class="resizer"></div>
+        </div>
+
+        <!-- Admin Panel for Inputting Content -->
+        <div id="admin-panel" class="admin-panel">
+            <h2 class="text-xl lg:text-2xl font-bold mb-3">Digital Signage Admin Panel</h2>
+            <div class="text-gray-500 mb-4 text-sm">User ID: <span id="user-id">Loading...</span></div>
+            
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Dashboard Settings on the left -->
+                <div class="lg:w-1/2">
+                    <h3 class="text-lg font-semibold mb-2">Dashboard Settings</h3>
+                    <form id="settings-form" class="mb-6">
+                        <div class="form-group">
+                            <label for="dashboard-title-input">Dashboard Title</label>
+                            <input type="text" id="dashboard-title-input" placeholder="Enter dashboard title">
+                        </div>
+                        <div class="form-group">
+                            <label for="dashboard-description-input">Dashboard Description</label>
+                            <textarea id="dashboard-description-input" rows="2" placeholder="Enter dashboard description"></textarea>
+                        </div>
+                        <button type="submit" class="btn w-full">Update Settings</button>
+                    </form>
+                </div>
+                
+                <!-- Content Management on the right -->
+                <div class="lg:w-1/2">
+                    <h3 id="form-title" class="text-lg font-semibold mb-2">Add New Content</h3>
+                    <form id="signage-form" class="mb-6">
+                        <div class="form-group">
+                            <label for="title-input">Content Title</label>
+                            <input type="text" id="title-input" placeholder="Enter a title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message-input">Content Message</label>
+                            <textarea id="message-input" rows="3" placeholder="Enter a message" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="image-upload-container">Content Image</label>
+                            <div id="drop-zone" class="drop-zone">
+                                <p class="text-sm text-gray-500 mb-2">Drag & drop an image here or</p>
+                                <button type="button" class="btn">Select an image</button>
+                            </div>
+                            <input type="file" id="image-file-input" class="hidden" accept="image/*">
+                            <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 rounded-lg">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" id="save-btn" class="btn w-full">Save Content</button>
+                            <button type="button" id="cancel-btn" class="btn w-full bg-gray-400 hover:bg-gray-500 hidden">Cancel</button>
+                        </div>
+                    </form>
+                    <p id="error-message" class="error-message"></p>
+        
+                    <h3 class="text-lg font-semibold mb-2">Current Content</h3>
+                    <div id="admin-content-list" class="admin-content-list">
+                        <div id="loading-list" class="text-gray-400">Loading content list...</div>
+                        <!-- Current content with delete buttons will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation bar moved to the bottom -->
+    <nav id="nav-bar" class="nav-bar">
+        <button id="dashboard-link" class="nav-link active">
+            <!-- Home Icon SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+        <button id="admin-link" class="nav-link">
+            <!-- New Admin Panel Icon: Dashboard Layout -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        </button>
+    </nav>
+
+    <!-- Message box for success/error messages -->
+    <div id="message-box" class="message-box"></div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, setLogLevel, deleteDoc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Set log level for debugging
+        setLogLevel('debug');
+
+        // --- PASTE YOUR FIREBASE CONFIGURATION HERE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVzA90FdwpQSeZkYSbzQvjq-Q_S0WEiQ",
+            authDomain: "dashboardpo-ad777.firebaseapp.com",
+            projectId: "dashboardpo-ad777",
+            storageBucket: "dashboardpo-ad777.firebasestorage.app",
+            messagingSenderId: "658206743438",
+            appId: "1:658206743438:web:b388d1b47bab715cbb22df"
+        };
+        const appId = firebaseConfig.projectId;
+        
+        // --- Firebase Initialization and Authentication ---
+        let app, db, auth;
+        let userId = 'loading...';
+        let unsubscribeContent = null;
+        let unsubscribeSettings = null;
+        let isFirebaseReady = false; // New variable to track Firebase readiness
+        
+        // A variable to store the timer ID for the auto-refresh
+        let autoRefreshTimer = null;
+
+        const contentCollectionPath = `artifacts/${appId}/public/data/signage_content`;
+        const settingsDocPath = `artifacts/${appId}/public/data/settings/site_settings`;
+
+        // Check if the firebase config is valid
+        if (firebaseConfig.projectId && !firebaseConfig.projectId.includes("YOUR_PROJECT_ID")) {
+            try {
+                // Initialize Firebase services outside of the auth listener for quicker setup
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Immediately attempt to sign in anonymously
+                signInAnonymously(auth).then(() => {
+                    console.log("Signed in anonymously.");
+                }).catch((error) => {
+                    console.error("Firebase Auth error:", error);
+                    if (error.code === 'auth/configuration-not-found') {
+                        console.error("Action Required: Please enable 'Anonymous' sign-in method in your Firebase Authentication settings.");
+                        userIdEl.textContent = 'Auth error. Check console.';
+                    }
+                });
+
+                // Handles user authentication state changes and sets up listeners
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdEl.textContent = userId;
+                        console.log("User authenticated:", userId);
+
+                        // Real-time listener for content cards
+                        if (unsubscribeContent) { unsubscribeContent(); }
+                        unsubscribeContent = onSnapshot(collection(db, contentCollectionPath), (snapshot) => {
+                            console.log("Firestore content update received.");
+                            const docs = [];
+                            snapshot.forEach(doc => {
+                                docs.push({ id: doc.id, ...doc.data() });
+                            });
+                            docs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                            renderContent(docs);
+                        }, (error) => {
+                            console.error("Error fetching documents:", error);
+                            loadingEl.textContent = 'Failed to load content. Check the console for errors.';
+                            loadingListEl.textContent = 'Failed to load content list.';
+                            showMessage('Error fetching content!', true);
+                        });
+
+                        // Real-time listener for dashboard settings
+                        if (unsubscribeSettings) { unsubscribeSettings(); }
+                        unsubscribeSettings = onSnapshot(doc(db, settingsDocPath), async (docSnapshot) => {
+                            console.log("Firestore settings update received.");
+                            if (docSnapshot.exists()) {
+                                const settings = docSnapshot.data();
+                                
+                                // Apply dashboard title and description
+                                if (settings.dashboardTitle) {
+                                    dashboardTitleEl.textContent = settings.dashboardTitle;
+                                }
+                                if (settings.dashboardDescription) {
+                                    dashboardDescriptionEl.textContent = settings.dashboardDescription;
+                                }
+                                // Apply dashboard size if available
+                                if (settings.dashboardWidth && settings.dashboardHeight) {
+                                    dashboardPanelEl.style.width = `${Math.max(settings.dashboardWidth, 900)}px`;
+                                    dashboardPanelEl.style.height = `${Math.max(settings.dashboardHeight, 500)}px`;
+                                }
+                                // Pre-fill admin form
+                                dashboardTitleInputEl.value = settings.dashboardTitle || '';
+                                dashboardDescriptionInputEl.value = settings.dashboardDescription || '';
+                            } else {
+                                // If the document doesn't exist, create it with default values
+                                const defaultSettings = {
+                                    dashboardTitle: "Digital Signage",
+                                    dashboardDescription: "Live updates from the admin panel",
+                                    dashboardWidth: 900,
+                                    dashboardHeight: 500
+                                };
+                                try {
+                                    await setDoc(doc(db, settingsDocPath), defaultSettings);
+                                    console.log("Default settings document created.");
+                                } catch (error) {
+                                    console.error("Error creating default settings document:", error);
+                                }
+                            }
+                        }, (error) => {
+                            console.error("Error fetching settings:", error);
+                        });
+                        
+                        isFirebaseReady = true; // Set readiness flag to true
+                    } else {
+                        userId = 'Anonymous';
+                        userIdEl.textContent = 'Not authenticated';
+                        console.log("No user authenticated.");
+                        isFirebaseReady = false;
+                    }
+                });
+
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                document.getElementById('loading').textContent = 'Error: Firebase initialization failed. Check your configuration.';
+                document.getElementById('loading-list').textContent = 'Error: Firebase initialization failed.';
+            }
+        } else {
+             document.getElementById('loading').textContent = 'Please enter your Firebase configuration in the code to get started.';
+             document.getElementById('loading-list').textContent = 'Please enter your Firebase configuration in the code to get started.';
+        }
+
+        // --- DOM Elements ---
+        const dashboardPanelEl = document.getElementById('dashboard-panel');
+        const dashboardResizerEl = document.getElementById('dashboard-resizer');
+        const adminPanelEl = document.getElementById('admin-panel');
+        const dashboardLinkEl = document.getElementById('dashboard-link');
+        const adminLinkEl = document.getElementById('admin-link');
+        const userIdEl = document.getElementById('user-id');
+        const loadingEl = document.getElementById('loading');
+        const signageContentContainer = document.getElementById('signage-content-container');
+        const adminContentList = document.getElementById('admin-content-list');
+        const loadingListEl = document.getElementById('loading-list');
+        const signageFormEl = document.getElementById('signage-form');
+        const settingsFormEl = document.getElementById('settings-form');
+        const errorMessageEl = document.getElementById('error-message');
+        const messageBoxEl = document.getElementById('message-box');
+        const dropZoneEl = document.getElementById('drop-zone');
+        const imageFileInputEl = document.getElementById('image-file-input');
+        const imagePreviewEl = document.getElementById('image-preview');
+        const navBarEl = document.getElementById('nav-bar');
+        const saveBtnEl = document.getElementById('save-btn');
+        const cancelBtnEl = document.getElementById('cancel-btn');
+        const formTitleEl = document.getElementById('form-title');
+        const titleInputEl = document.getElementById('title-input');
+        const messageInputEl = document.getElementById('message-input');
+        
+        // New elements for dashboard settings
+        const dashboardTitleEl = document.getElementById('dashboard-title');
+        const dashboardDescriptionEl = document.getElementById('dashboard-description');
+        const dashboardTitleInputEl = document.getElementById('dashboard-title-input');
+        const dashboardDescriptionInputEl = document.getElementById('dashboard-description-input');
+        
+        const DEFAULT_CARD_WIDTH = 300;
+        const DEFAULT_CARD_HEIGHT = 200;
+        const GRID_SIZE = 20; // For smart placement
+
+        let uploadedImageUrl = null;
+        let editingDocId = null; // Variable to store the ID of the document being edited
+        let allContentData = []; // To store a local copy of content for editing
+
+        // Function to display a temporary message box
+        const showMessage = (message, isError = false) => {
+            messageBoxEl.textContent = message;
+            messageBoxEl.style.backgroundColor = isError ? '#ef4444' : '#10b981';
+            messageBoxEl.classList.add('visible');
+            setTimeout(() => {
+                messageBoxEl.classList.remove('visible');
+            }, 3000);
+        };
+
+        // --- View Switching Logic ---
+        const showView = (viewId) => {
+            dashboardPanelEl.classList.remove('active');
+            adminPanelEl.classList.remove('active');
+            dashboardLinkEl.classList.remove('active');
+            adminLinkEl.classList.remove('active');
+
+            if (viewId === 'dashboard') {
+                dashboardPanelEl.classList.add('active');
+                dashboardLinkEl.classList.add('active');
+            } else if (viewId === 'admin') {
+                adminPanelEl.classList.add('active');
+                adminLinkEl.classList.add('active');
+            }
+        };
+
+        dashboardLinkEl.addEventListener('click', () => showView('dashboard'));
+        adminLinkEl.addEventListener('click', () => showView('admin'));
+        showView('dashboard'); // Start on the dashboard view
+
+        // --- Firestore Data Management and Rendering ---
+        
+        // Function to update the size of the dashboard container
+        const updateDashboardSize = () => {
+            const cards = document.querySelectorAll('.signage-card');
+            let maxX = 0;
+            let maxY = 0;
+
+            cards.forEach(card => {
+                const x = card.offsetLeft + card.offsetWidth;
+                const y = card.offsetTop + card.offsetHeight;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            });
+            
+            // Add some padding to the max values
+            dashboardPanelEl.style.minWidth = `${Math.max(maxX + 50, 900)}px`;
+            dashboardPanelEl.style.minHeight = `${Math.max(maxY + 50, 500)}px`;
+        };
+
+        // Function to find the first available whitespace for a new card
+        const findWhitespace = (cards) => {
+            const occupied = cards.map(card => {
+                const rect = card.getBoundingClientRect();
+                return {
+                    left: card.offsetLeft,
+                    top: card.offsetTop,
+                    right: card.offsetLeft + card.offsetWidth,
+                    bottom: card.offsetTop + card.offsetHeight
+                };
+            });
+
+            // Grid-based search for open space
+            for (let y = 20; y < 10000; y += GRID_SIZE) {
+                for (let x = 20; x < 10000; x += GRID_SIZE) {
+                    const newRect = {
+                        left: x,
+                        top: y,
+                        right: x + DEFAULT_CARD_WIDTH,
+                        bottom: y + DEFAULT_CARD_HEIGHT
+                    };
+                    
+                    let isOverlap = false;
+                    for (const o of occupied) {
+                        if (newRect.left < o.right && newRect.right > o.left &&
+                            newRect.top < o.bottom && newRect.bottom > o.top) {
+                            isOverlap = true;
+                            break;
+                        }
+                    }
+
+                    if (!isOverlap) {
+                        return { x, y };
+                    }
+                }
+            }
+
+            // Fallback if no easy space is found
+            return { x: 20, y: 20 };
+        };
+        
+        // Array of background colors to cycle through for cards
+        const backgroundColors = [
+            'bg-indigo-50', 'bg-blue-50', 'bg-green-50', 'bg-yellow-50', 'bg-red-50',
+            'bg-purple-50', 'bg-pink-50', 'bg-cyan-50', 'bg-teal-50', 'bg-amber-50'
+        ];
+
+        // Function to render all content on both the dashboard and admin panel
+        const renderContent = (docs) => {
+            allContentData = docs; // Store local copy
+            loadingEl.style.display = 'none';
+            loadingListEl.style.display = 'none';
+            signageContentContainer.innerHTML = '';
+            adminContentList.innerHTML = '';
+
+            if (docs.length === 0) {
+                signageContentContainer.innerHTML = '<p class="text-xl text-gray-400 text-center col-span-full">No content available yet. Add some from the admin panel!</p>';
+                adminContentList.innerHTML = '<p class="text-gray-400">No content to display.</p>';
+                return;
+            }
+
+            // Render on the dashboard
+            docs.forEach((item, index) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = `signage-card ${backgroundColors[index % backgroundColors.length]}`;
+                cardEl.id = `card-${item.id}`;
+                
+                let contentHTML = `
+                    <h3 class="text-gray-800">${item.title}</h3>
+                    <pre class="text-gray-600">${item.message}</pre>
+                `;
+                
+                // New container for the image with a fixed height and overflow-hidden
+                if (item.imageUrl) {
+                    contentHTML += `
+                        <div class="relative h-48 mt-4 overflow-hidden rounded-lg flex-shrink-0">
+                            <img class="absolute w-full h-full object-cover" 
+                                src="${item.imageUrl}" 
+                                alt="${item.title}" 
+                                onerror="this.onerror=null;this.src='https://placehold.co/400x300/D1D5DB/1F2937?text=Image+Not+Found';">
+                        </div>`;
+                }
+                
+                contentHTML += `<div class="resizer"></div>`; // Resizer handle
+                cardEl.innerHTML = contentHTML;
+                signageContentContainer.appendChild(cardEl);
+                
+                // Apply saved position and size
+                if (item.x !== undefined && item.y !== undefined) {
+                    cardEl.style.left = `${item.x}px`;
+                    cardEl.style.top = `${item.y}px`;
+                }
+                if (item.width !== undefined && item.height !== undefined) {
+                    cardEl.style.width = `${item.width}px`;
+                    cardEl.style.height = `${item.height}px`;
+                }
+
+                // Make the card draggable and resizable
+                makeDraggableAndResizable(cardEl, item.id);
+            });
+            
+            updateDashboardSize();
+
+            // Render on the admin panel with edit and delete buttons
+            docs.forEach(item => {
+                const listItemEl = document.createElement('div');
+                listItemEl.className = 'admin-content-item';
+                listItemEl.innerHTML = `
+                    <span>${item.title}</span>
+                    <div class="flex gap-2">
+                        <button class="admin-btn edit" data-id="${item.id}">Edit</button>
+                        <button class="admin-btn delete" data-id="${item.id}">Delete</button>
+                    </div>
+                `;
+                adminContentList.appendChild(listItemEl);
+            });
+        };
+
+        // Event delegation for Edit and Delete buttons
+        adminContentList.addEventListener('click', async (e) => {
+            const button = e.target;
+            const docId = button.dataset.id;
+            if (!docId) return;
+
+            if (button.classList.contains('delete')) {
+                await deleteContent(docId);
+            } else if (button.classList.contains('edit')) {
+                const contentToEdit = allContentData.find(item => item.id === docId);
+                if (contentToEdit) {
+                    editingDocId = docId;
+                    titleInputEl.value = contentToEdit.title;
+                    messageInputEl.value = contentToEdit.message;
+                    uploadedImageUrl = contentToEdit.imageUrl;
+                    imagePreviewEl.src = uploadedImageUrl;
+                    imagePreviewEl.classList.remove('hidden');
+
+                    saveBtnEl.textContent = 'Update Content';
+                    formTitleEl.textContent = 'Edit Content';
+                    cancelBtnEl.classList.remove('hidden');
+                }
+            }
+        });
+
+        // Function to delete content from Firestore
+        const deleteContent = async (docId) => {
+            if (!docId || !auth.currentUser) return;
+            try {
+                await deleteDoc(doc(db, contentCollectionPath, docId));
+                showMessage('Content successfully deleted!');
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                showMessage('Failed to delete content.', true);
+            }
+        };
+
+        // --- Content Form Submission Logic ---
+        signageFormEl.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMessageEl.textContent = '';
+
+            const title = titleInputEl.value;
+            const message = messageInputEl.value;
+
+            if (!title) {
+                errorMessageEl.textContent = 'Title is required!';
+                return;
+            }
+            if (!auth.currentUser) {
+                errorMessageEl.textContent = 'Authentication error. Please refresh the page.';
+                console.error("Authentication error: user not logged in.");
+                return;
+            }
+
+            const contentData = {
+                title: title,
+                message: message,
+                imageUrl: uploadedImageUrl,
+                timestamp: Date.now(),
+                userId: userId,
+            };
+
+            try {
+                if (editingDocId) {
+                    await updateDoc(doc(db, contentCollectionPath, editingDocId), contentData);
+                    showMessage('Content updated successfully!');
+                } else {
+                    const existingCards = document.querySelectorAll('.signage-card');
+                    const { x, y } = findWhitespace(Array.from(existingCards));
+                    
+                    const newContentWithPosition = { ...contentData, x, y, width: DEFAULT_CARD_WIDTH, height: DEFAULT_CARD_HEIGHT };
+                    await addDoc(collection(db, contentCollectionPath), newContentWithPosition);
+                    showMessage('Content saved successfully!');
+                }
+
+                resetForm();
+                updateDashboardSize();
+
+            } catch (error) {
+                console.error("Error saving/updating document: ", error);
+                errorMessageEl.textContent = 'Failed to save/update content. Please try again.';
+            }
+        });
+
+        // Function to reset the form to its initial state
+        const resetForm = () => {
+            signageFormEl.reset();
+            imagePreviewEl.classList.add('hidden');
+            uploadedImageUrl = null;
+            editingDocId = null;
+            saveBtnEl.textContent = 'Save Content';
+            formTitleEl.textContent = 'Add New Content';
+            cancelBtnEl.classList.add('hidden');
+        };
+
+        cancelBtnEl.addEventListener('click', resetForm);
+
+        // --- Settings Form Submission Logic ---
+        settingsFormEl.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const newTitle = dashboardTitleInputEl.value;
+            const newDescription = dashboardDescriptionInputEl.value;
+            
+            if (!isFirebaseReady) {
+                showMessage('Connecting to database. Please wait a moment and try again.', true);
+                return;
+            }
+
+            const settingsData = {
+                dashboardTitle: newTitle,
+                dashboardDescription: newDescription,
+            };
+            
+            try {
+                // Use setDoc with a specific document path to create or update the single settings document
+                await setDoc(doc(db, settingsDocPath), settingsData, { merge: true });
+                
+                showMessage('Settings updated successfully!');
+            } catch (error) {
+                console.error("Error updating settings: ", error);
+                showMessage('Failed to update settings. Please try again.', true);
+            }
+        });
+
+        // --- Content Image Upload Logic ---
+        const handleImageFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImageUrl = e.target.result;
+                    imagePreviewEl.src = uploadedImageUrl;
+                    imagePreviewEl.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showMessage('Please select a valid image file.', true);
+            }
+        };
+
+        dropZoneEl.addEventListener('click', () => { imageFileInputEl.click(); });
+        imageFileInputEl.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+
+        // Handle drag and drop for images
+        const setupDropZone = (element, handler) => {
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                element.classList.add('active');
+            });
+            element.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                element.classList.remove('active');
+            });
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                element.classList.remove('active');
+                if (e.dataTransfer.files.length > 0) {
+                    handler(e.dataTransfer.files[0]);
+                }
+            });
+        };
+        setupDropZone(dropZoneEl, handleImageFile);
+
+
+        // --- Draggable and Resizable Logic ---
+        const makeDraggableAndResizable = (element, docId) => {
+            const resizer = element.querySelector('.resizer');
+            let isDragging = false;
+            let isResizing = false;
+            let currentX, currentY, initialX, initialY, initialWidth, initialHeight;
+
+            const dragMouseDown = (e) => {
+                if (e.target !== resizer) {
+                    isDragging = true;
+                    initialX = e.clientX;
+                    initialY = e.clientY;
+                    currentX = element.offsetLeft;
+                    currentY = element.offsetTop;
+                    document.addEventListener('mousemove', dragMouseMove);
+                    document.addEventListener('mouseup', dragMouseUp);
+                    element.style.cursor = 'grabbing';
+                    element.classList.add('active-drag');
+                }
+            };
+
+            const dragMouseMove = (e) => {
+                if (isDragging) {
+                    const dx = e.clientX - initialX;
+                    const dy = e.clientY - initialY;
+
+                    let newX = currentX + dx;
+                    let newY = currentY + dy;
+
+                    newX = Math.max(0, newX);
+                    newY = Math.max(0, newY);
+
+                    element.style.left = `${newX}px`;
+                    element.style.top = `${newY}px`;
+                    updateDashboardSize();
+                }
+            };
+
+            const dragMouseUp = async (e) => {
+                if (isDragging) {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', dragMouseMove);
+                    document.removeEventListener('mouseup', dragMouseUp);
+                    element.style.cursor = 'grab';
+                    element.classList.remove('active-drag');
+
+                    const newX = element.offsetLeft;
+                    const newY = element.offsetTop;
+                    if (db) { // Check if db is initialized before trying to use it
+                        await updateDoc(doc(db, contentCollectionPath, docId), { x: newX, y: newY });
+                    }
+                }
+            };
+            
+            const resizeMouseDown = (e) => {
+                isResizing = true;
+                e.stopPropagation();
+                initialX = e.clientX;
+                initialY = e.clientY;
+                initialWidth = element.offsetWidth;
+                initialHeight = element.offsetHeight;
+                document.addEventListener('mousemove', resizeMouseMove);
+                    document.addEventListener('mouseup', resizeMouseUp);
+                element.classList.add('active-drag');
+            };
+
+            const resizeMouseMove = (e) => {
+                if (isResizing) {
+                    const dx = e.clientX - initialX;
+                    const dy = e.clientY - initialY;
+                    
+                    let newWidth = initialWidth + dx;
+                    let newHeight = initialHeight + dy;
+
+                    newWidth = Math.max(newWidth, 250);
+                    newHeight = Math.max(newHeight, 200);
+                    
+                    element.style.width = `${newWidth}px`;
+                    element.style.height = `${newHeight}px`;
+                    updateDashboardSize();
+                }
+            };
+            
+            const resizeMouseUp = async () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', resizeMouseMove);
+                    document.removeEventListener('mouseup', resizeMouseUp);
+                    element.classList.remove('active-drag');
+                    const newWidth = element.offsetWidth;
+                    const newHeight = element.offsetHeight;
+                    if (db) { // Check if db is initialized before trying to use it
+                        await updateDoc(doc(db, contentCollectionPath, docId), { width: newWidth, height: newHeight });
+                    }
+                }
+            };
+
+            element.addEventListener('mousedown', dragMouseDown);
+            resizer.addEventListener('mousedown', resizeMouseDown);
+        };
+        
+        // --- Dashboard Resizing Logic ---
+        // This section handles the logic for resizing the main dashboard container.
+        let isDashboardResizing = false;
+        let initialMouseX, initialMouseY, initialWidth, initialHeight;
+
+        dashboardResizerEl.addEventListener('mousedown', (e) => {
+            isDashboardResizing = true;
+            initialMouseX = e.clientX;
+            initialMouseY = e.clientY;
+            initialWidth = dashboardPanelEl.offsetWidth;
+            initialHeight = dashboardPanelEl.offsetHeight;
+            document.addEventListener('mousemove', handleDashboardResize);
+            document.addEventListener('mouseup', stopDashboardResize);
+            dashboardPanelEl.style.cursor = 'se-resize';
+        });
+
+        const handleDashboardResize = (e) => {
+            if (isDashboardResizing) {
+                const dx = e.clientX - initialMouseX;
+                const dy = e.clientY - initialMouseY;
+                
+                const newWidth = initialWidth + dx;
+                const newHeight = initialHeight + dy;
+
+                dashboardPanelEl.style.width = `${Math.max(newWidth, 900)}px`;
+                dashboardPanelEl.style.height = `${Math.max(newHeight, 500)}px`;
+            }
+        };
+
+        const stopDashboardResize = async () => {
+            isDashboardResizing = false;
+            document.removeEventListener('mousemove', handleDashboardResize);
+            document.removeEventListener('mouseup', stopDashboardResize);
+            dashboardPanelEl.style.cursor = 'default';
+
+            // --- THIS IS WHERE THE DASHBOARD SIZE IS SAVED TO FIREBASE ---
+            if (isFirebaseReady) {
+                try {
+                    console.log("Saving dashboard size to Firestore...");
+                    await setDoc(doc(db, settingsDocPath), {
+                        dashboardWidth: dashboardPanelEl.offsetWidth,
+                        dashboardHeight: dashboardPanelEl.offsetHeight
+                    }, { merge: true });
+                    showMessage('Dashboard size saved!');
+                } catch (error) {
+                console.error("Error saving dashboard size:", error);
+                showMessage('Failed to save dashboard size.', true);
+                }
+            }
+        };
+
+        // --- Auto-refresh every 1 minute ---
+        // The application already has real-time updates from Firestore,
+        // but this will perform a full page reload for a hard refresh.
+        autoRefreshTimer = setTimeout(() => {
+            location.reload();
+        }, 600 * 1000); // 60 seconds * 1000 milliseconds
+
+    </script>
+</body>
+</html>
